@@ -1007,8 +1007,38 @@ function renderFixed() {
       }).join('');
 }
 
-function togFix(id) { const f=D.fixedItems[id]; if(f) rRef.child('fixedItems/'+id+'/active').set(!(f.active!==false)); }
-async function delFix(id) { if(!confirm('確定刪除此固定支出設定？'))return; await rRef.child('fixedItems/'+id).remove(); toast('已刪除','info'); }
+async function delFix(id) {
+  const f = D.fixedItems[id];
+  if (!f) return;
+  if (!confirm(`確定要刪除固定支出項目「${f.name}」？\n此動作將同時清除此項目的歷史扣款紀錄，並將已扣除金額退回共用金！`)) return;
+
+  try {
+    const relatedExecs = execs().filter(e => e.fixedId === id);
+    let totalRefund = 0;
+
+    for (const ex of relatedExecs) {
+      if (ex.done) {
+        const amt = typeof ex.amount === 'number' ? ex.amount : (f.amount || 0);
+        totalRefund += amt;
+      }
+      await rRef.child('fixedExecutions/' + ex.id).remove();
+
+      const tx = txs().find(t => t.ref === ex.id);
+      if (tx) {
+        await rRef.child('transactions/' + tx.id).remove();
+      }
+    }
+
+    if (totalRefund > 0) {
+      await rRef.child('balance').transaction(b => (b || 0) + totalRefund);
+    }
+
+    await rRef.child('fixedItems/' + id).remove();
+    toast(`已刪除固定支出「${f.name}」，帳目明細紀錄已同步清除${totalRefund > 0 ? `（金額已退回 NT$${fmt(totalRefund)}）` : ''}`, 'info');
+  } catch (e) {
+    toast('刪除失敗：' + e.message, 'error');
+  }
+}
 
 async function delExec(exId) {
   const ex = D.fixedExecutions[exId]; if (!ex) return;
