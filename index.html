@@ -515,6 +515,18 @@ textarea.fc{resize:vertical;min-height:90px;}
       <div class="fg"><label class="fl">每月幾號扣款</label><input type="number" class="fc" id="fix-day" placeholder="1~31" min="1" max="31"/></div>
       <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="fix-note" placeholder="選填..."/></div>
     </div>
+    <div class="fg">
+      <label class="fl">📷 上傳照片 / 單據範本 (選填)</label>
+      <div class="photo-upload-box">
+        <input type="file" id="fix-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-img')"/>
+        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('fix-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <div id="fix-photo-prev" class="photo-preview-wrap" style="display:none">
+          <img id="fix-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val')">✕ 移除照片</button>
+        </div>
+        <input type="hidden" id="fix-photo-val" value=""/>
+      </div>
+    </div>
     <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-fixed')">取消</button><button class="btn btn-p" onclick="submitFixed()">儲存</button></div>
   </div>
 </div>
@@ -917,13 +929,13 @@ function renderFixed() {
   document.getElementById('fix-tbody').innerHTML = fs.length===0
     ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
     : fs.map(f=>`<tr>
-        <td style="font-weight:700">${f.name}</td>
+        <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
         <td><span class="badge b-violet">${f.category||'-'}</span></td>
         <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
         <td style="color:var(--t2)">${f.day?f.day+'號':'-'}</td>
         <td><span class="badge ${f.active!==false?'b-green':'b-gray'}">${f.active!==false?'啟用':'停用'}</span></td>
         <td><div class="flex g2i">
-          <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')">✏️</button>
+          <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯/補傳照片">✏️</button>
           <button class="btn btn-sec btn-icon btn-sm" onclick="togFix('${f.id}')">${f.active!==false?'⏸':'▶️'}</button>
           <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')">🗑</button>
         </div></td>
@@ -1172,15 +1184,28 @@ function openFixed(eid){
   const isE=!!eid;
   document.getElementById('fix-mtitle').textContent=isE?'✏️ 編輯固定支出':'＋ 新增固定支出';
   document.getElementById('fix-eid').value=eid||'';
-  if(isE){const f=D.fixedItems[eid];if(f){document.getElementById('fix-name').value=f.name||'';document.getElementById('fix-cat').value=f.category||'';document.getElementById('fix-amt').value=f.amount||'';document.getElementById('fix-day').value=f.day||'';document.getElementById('fix-note').value=f.note||'';}}
-  else{['fix-name','fix-amt','fix-day','fix-note'].forEach(i=>document.getElementById(i).value='');}
+  if(isE){
+    const f=D.fixedItems[eid];
+    if(f){
+      document.getElementById('fix-name').value=f.name||'';
+      document.getElementById('fix-cat').value=f.category||'';
+      document.getElementById('fix-amt').value=f.amount||'';
+      document.getElementById('fix-day').value=f.day||'';
+      document.getElementById('fix-note').value=f.note||'';
+      setPhotoPreview(f.photo, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-img');
+    }
+  } else {
+    ['fix-name','fix-amt','fix-day','fix-note'].forEach(i=>document.getElementById(i).value='');
+    clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val');
+  }
   openM('mo-fixed');
 }
 async function submitFixed(){
   const name=document.getElementById('fix-name').value.trim(), cat=document.getElementById('fix-cat').value, amt=parseFloat(document.getElementById('fix-amt').value), day=parseInt(document.getElementById('fix-day').value)||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
   if(!name)return toast('請輸入項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
-  const data={name,category:cat,amount:amt,day,note};
+  const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
+  const data={name,category:cat,amount:amt,day,note,photo:photo||null};
   if(eid)await rRef.child('fixedItems/'+eid).update(data);
   else await rRef.child('fixedItems').push({...data,active:true,createdAt:Date.now()});
   closeM('mo-fixed'); toast(eid?'已更新':'已新增固定支出','success');
