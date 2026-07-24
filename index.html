@@ -334,7 +334,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   <div class="nav-label">主選單</div>
   <div class="nav-item active" id="nav-dashboard" onclick="go('dashboard')"><span class="ni">📊</span>總覽</div>
   <div class="nav-item" id="nav-members" onclick="go('members')"><span class="ni">👥</span>成員管理</div>
-  <div class="nav-item" id="nav-fixed" onclick="go('fixed')"><span class="ni">📋</span>固定支出</div>
+  <div class="nav-item" id="nav-fixed" onclick="go('fixed')"><span class="ni">📋</span>固定支出<span id="nav-fixed-badge"></span></div>
   <div class="nav-item" id="nav-ledger" onclick="go('ledger')"><span class="ni">📒</span>帳目明細</div>
   <div class="nav-item" id="nav-report" onclick="go('report')"><span class="ni">📈</span>月結報表</div>
   <div class="nav-label" style="margin-top:10px">其他</div>
@@ -471,6 +471,23 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         <div class="mt4 flex g2i">
           <input type="text" class="fc" id="new-loc" placeholder="新地點名稱" style="flex:1"/>
           <button class="btn btn-sec btn-sm" onclick="addLoc()">新增</button>
+        </div>
+      </div>
+      <div class="card mb4">
+        <div class="ct">🔔 固定支出到期提醒設定</div>
+        <div class="srow">
+          <div>
+            <div class="srow-label">幾天前跳出到期提醒</div>
+            <div class="srow-sub">當有固定支出在此天數內到期或已逾期時，側邊欄「固定支出」選單會顯示 ⚠️ 驚嘆號數量提示</div>
+          </div>
+          <select class="fc" id="set-alert-days" style="width:110px" onchange="setAlertDays(this.value)">
+            <option value="1">1 天前</option>
+            <option value="2">2 天前</option>
+            <option value="3">3 天前</option>
+            <option value="5">5 天前</option>
+            <option value="7">7 天前</option>
+            <option value="10">10 天前</option>
+          </select>
         </div>
       </div>
       <div class="card">
@@ -894,8 +911,10 @@ function listen() {
     D.fixedItems = v.fixedItems||{};
     D.fixedExecutions = v.fixedExecutions||{};
     D.deposits = v.deposits||{};
+    D.settings = v.settings||{};
     const me = CFG && D.members[CFG.currentMemberId];
     document.getElementById('sb-name').textContent = me ? me.name : '未設定';
+    updateNavBadges();
     renderPage(curPage);
   });
 }
@@ -1017,17 +1036,85 @@ async function delDeposit(id) {
 // ═══════════════════════════════════════════════
 //  FIXED
 // ═══════════════════════════════════════════════
+function getFixedAlerts() {
+  const alertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
+  const fs = fixes().filter(f => f.active !== false);
+  const m = mon();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const alerts = [];
+
+  fs.forEach(f => {
+    const ex = execs().find(e => e.fixedId === f.id && e.month === m && e.done);
+    if (!ex) {
+      let targetDate = null;
+      if (f.dayDate && f.dayDate.includes('-')) {
+        const parts = f.dayDate.split('-');
+        targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      } else if (f.day) {
+        targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
+      }
+
+      if (targetDate) {
+        targetDate.setHours(0,0,0,0);
+        const diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+        if (diffDays <= alertDays) {
+          alerts.push({ fixed: f, diffDays, isOverdue: diffDays < 0 });
+        }
+      }
+    }
+  });
+  return alerts;
+}
+
+function updateNavBadges() {
+  const alerts = getFixedAlerts();
+  const elBadge = document.getElementById('nav-fixed-badge');
+  if (elBadge) {
+    if (alerts.length > 0) {
+      const hasOverdue = alerts.some(a => a.isOverdue);
+      elBadge.innerHTML = `<span class="badge ${hasOverdue ? 'b-red' : 'b-amber'}" style="margin-left:auto;font-size:10px;padding:1px 6px;animation:pulse 1s infinite" title="有 ${alerts.length} 筆固定支出即將到期或已逾期">⚠️ ${alerts.length}</span>`;
+    } else {
+      elBadge.innerHTML = '';
+    }
+  }
+}
+
 function renderFixed() {
+  updateNavBadges();
   const fs=fixes();
   const m=mon();
+  const alertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
+  const today = new Date(); today.setHours(0,0,0,0);
+
   document.getElementById('fix-tbody').innerHTML = fs.length===0
     ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
     : fs.map(f=>{
         const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
         const done=ex&&ex.done;
-        const statusHtml = done
-          ? `<span class="badge b-green">✓ 已繳款 (${ex.date})</span>`
-          : `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+        let statusHtml = '';
+        if (done) {
+          statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date})</span>`;
+        } else {
+          let diffDays = 999;
+          if (f.dayDate && f.dayDate.includes('-')) {
+            const parts = f.dayDate.split('-');
+            const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            targetDate.setHours(0,0,0,0);
+            diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+          } else if (f.day) {
+            const targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
+            targetDate.setHours(0,0,0,0);
+            diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+          }
+
+          if (diffDays < 0) {
+            statusHtml = `<button class="btn btn-d btn-sm" onclick="openExec('${f.id}')" title="已超過繳款期限">🚨 已逾期 (${Math.abs(diffDays)}天)</button>`;
+          } else if (diffDays <= alertDays) {
+            statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}')">⚠️ 剩 ${diffDays === 0 ? '今天' : diffDays + ' 天'}到期</button>`;
+          } else {
+            statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+          }
+        }
         return `<tr>
           <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
           <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
@@ -1252,6 +1339,16 @@ function renderSettings() {
     </div>`).join('');
   document.getElementById('info-room').textContent=CFG.roomCode;
   document.getElementById('info-me').textContent=mName(CFG.currentMemberId);
+  const curAlertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
+  const elDays = document.getElementById('set-alert-days');
+  if (elDays) elDays.value = curAlertDays;
+}
+
+async function setAlertDays(val) {
+  const days = parseInt(val, 10) || 3;
+  await rRef.child('settings/alertDays').set(days);
+  toast(`已設定固定支出到期提醒為 ${days} 天前`, 'success');
+  updateNavBadges();
 }
 
 function renMem(id,n){if(n.trim())rRef.child('members/'+id+'/name').set(n.trim());}
