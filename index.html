@@ -299,7 +299,6 @@ textarea.fc{resize:vertical;min-height:90px;}
   <div class="nav-item active" id="nav-dashboard" onclick="go('dashboard')"><span class="ni">📊</span>總覽</div>
   <div class="nav-item" id="nav-members" onclick="go('members')"><span class="ni">👥</span>成員管理</div>
   <div class="nav-item" id="nav-fixed" onclick="go('fixed')"><span class="ni">📋</span>固定支出</div>
-  <div class="nav-item" id="nav-petty" onclick="go('petty')"><span class="ni">💸</span>零用金</div>
   <div class="nav-item" id="nav-ledger" onclick="go('ledger')"><span class="ni">📒</span>帳目明細</div>
   <div class="nav-item" id="nav-report" onclick="go('report')"><span class="ni">📈</span>月結報表</div>
   <div class="nav-label" style="margin-top:10px">其他</div>
@@ -366,22 +365,6 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="tw"><table><thead><tr><th>項目</th><th>類別</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
   </div>
   <div class="card"><div class="ct">本月執行狀況</div><div id="fix-exec"></div></div>
-</div>
-
-<!-- PETTY -->
-<div class="page" id="page-petty">
-  <div class="ph">
-    <div><div class="ph-title">💸 零用金支出</div><div class="ph-sub">不定期臨時支出</div></div>
-    <button class="btn btn-p" onclick="openPetty()">＋ 新增支出</button>
-  </div>
-  <div class="card">
-    <div class="filter-bar">
-      <select class="fc" id="pf-m" onchange="renderPetty()"><option value="">所有成員</option></select>
-      <select class="fc" id="pf-c" onchange="renderPetty()"><option value="">所有類別</option></select>
-      <input type="month" class="fc" id="pf-mo" onchange="renderPetty()"/>
-    </div>
-    <div class="tw"><table><thead><tr><th>日期</th><th>項目</th><th>類別</th><th>使用人</th><th>金額</th><th>備註</th><th></th></tr></thead><tbody id="petty-tbody"></tbody></table></div>
-  </div>
 </div>
 
 <!-- LEDGER -->
@@ -555,36 +538,6 @@ textarea.fc{resize:vertical;min-height:90px;}
       </div>
     </div>
     <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-exec')">取消</button><button class="btn btn-p" onclick="submitExec()">確認扣款</button></div>
-  </div>
-</div>
-
-<div class="mo" id="mo-petty">
-  <div class="md">
-    <div class="mh"><div class="mt" id="petty-mtitle">新增零用金支出</div><button class="mc" onclick="closeM('mo-petty')">✕</button></div>
-    <input type="hidden" id="petty-eid"/>
-    <div class="fg"><label class="fl">項目名稱</label><input type="text" class="fc" id="pt-name" placeholder="例如：辦公用品..."/></div>
-    <div class="fr">
-      <div class="fg"><label class="fl">類別</label><select class="fc" id="pt-cat"></select></div>
-      <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="pt-amt" placeholder="0" min="1"/></div>
-    </div>
-    <div class="fr">
-      <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="pt-date"/></div>
-      <div class="fg"><label class="fl">使用/負責人</label><select class="fc" id="pt-mem"><option value="">不指定</option></select></div>
-    </div>
-    <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="pt-note" placeholder="選填..."/></div>
-    <div class="fg">
-      <label class="fl">📷 上傳照片 / 發票憑證 (選填)</label>
-      <div class="photo-upload-box">
-        <input type="file" id="pt-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'pt-photo-prev', 'pt-photo-val', 'pt-photo-img')"/>
-        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('pt-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
-        <div id="pt-photo-prev" class="photo-preview-wrap" style="display:none">
-          <img id="pt-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
-          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('pt-photo-input', 'pt-photo-prev', 'pt-photo-val')">✕ 移除照片</button>
-        </div>
-        <input type="hidden" id="pt-photo-val" value=""/>
-      </div>
-    </div>
-    <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-petty')">取消</button><button class="btn btn-p" onclick="submitPetty()">儲存</button></div>
   </div>
 </div>
 
@@ -779,7 +732,6 @@ function startApp() {
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
     document.getElementById('lf-mo').value = mon();
-    document.getElementById('pf-mo').value = mon();
     document.getElementById('rpt-mo').value = mon();
     listen();
   } catch(e) { toast('Firebase 連線失敗：'+e.message,'error'); showSetup(); }
@@ -801,7 +753,6 @@ function listen() {
     D.fixedItems = v.fixedItems||{};
     D.fixedExecutions = v.fixedExecutions||{};
     D.deposits = v.deposits||{};
-    D.pettyItems = v.pettyItems||{};
     const me = CFG && D.members[CFG.currentMemberId];
     document.getElementById('sb-name').textContent = me ? me.name : '未設定';
     renderPage(curPage);
@@ -811,7 +762,7 @@ function listen() {
 async function initRoom() {
   const ms = {};
   ['成員 A','成員 B','成員 C'].forEach((n,i)=>{ const id=gid(); ms[id]={name:n,color:COLORS[i],createdAt:Date.now()}; });
-  await rRef.set({balance:0,members:ms,categories:DEF_CATS,transactions:{},fixedItems:{},fixedExecutions:{},deposits:{},pettyItems:{}});
+  await rRef.set({balance:0,members:ms,categories:DEF_CATS,transactions:{},fixedItems:{},fixedExecutions:{},deposits:{}});
 }
 
 // ═══════════════════════════════════════════════
@@ -825,7 +776,7 @@ function go(page) {
   curPage = page; renderPage(page);
 }
 function renderPage(page) {
-  const fn={dashboard:renderDash,members:renderMembers,fixed:renderFixed,petty:renderPetty,ledger:renderLedger,report:renderReport,settings:renderSettings};
+  const fn={dashboard:renderDash,members:renderMembers,fixed:renderFixed,ledger:renderLedger,report:renderReport,settings:renderSettings};
   if(fn[page]) fn[page]();
 }
 
@@ -962,48 +913,6 @@ function togFix(id) { const f=D.fixedItems[id]; if(f) rRef.child('fixedItems/'+i
 async function delFix(id) { if(!confirm('確定刪除？'))return; await rRef.child('fixedItems/'+id).remove(); toast('已刪除','info'); }
 
 // ═══════════════════════════════════════════════
-//  PETTY
-// ═══════════════════════════════════════════════
-function renderPetty() {
-  const ms=mems();
-  const mSel=document.getElementById('pf-m'), cSel=document.getElementById('pf-c');
-  const mv=mSel.value, cv=cSel.value;
-  mSel.innerHTML=`<option value="">所有成員</option>`+ms.map(m=>`<option value="${m.id}" ${mv===m.id?'selected':''}>${m.name}</option>`).join('');
-  cSel.innerHTML=`<option value="">所有類別</option>`+D.categories.map(c=>`<option value="${c}" ${cv===c?'selected':''}>${c}</option>`).join('');
-  const moF=document.getElementById('pf-mo').value;
-  let items=petties().sort((a,b)=>b.date.localeCompare(a.date));
-  if(mv)items=items.filter(i=>i.memberId===mv);
-  if(cv)items=items.filter(i=>i.category===cv);
-  if(moF)items=items.filter(i=>i.date.startsWith(moF));
-  document.getElementById('petty-tbody').innerHTML=items.length===0
-    ?`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
-    :items.map(it=>`<tr>
-        <td>${it.date}</td><td style="font-weight:700">${it.name}</td>
-        <td><span class="badge b-violet">${it.category||'-'}</span></td>
-        <td>${it.memberId?`<span class="badge b-blue">${mName(it.memberId)}</span>`:'-'}</td>
-        <td style="font-weight:900;color:var(--red)">NT$${fmt(it.amount)}</td>
-        <td style="color:var(--t3)">${it.note||'-'}${it.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${it.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
-        <td><div class="flex g2i">
-          ${it.photo?`<button class="btn btn-sec btn-icon btn-sm" onclick="viewPhoto('${it.photo}')" title="查看照片">🖼️</button>`:''}
-          <button class="btn btn-sec btn-icon btn-sm" onclick="openPetty('${it.id}')">✏️</button>
-          <button class="btn btn-d btn-icon btn-sm" onclick="delPetty('${it.id}')">🗑</button>
-        </div></td>
-      </tr>`).join('');
-}
-
-async function delPetty(id) {
-  if(!confirm('確定刪除？'))return;
-  const it=D.pettyItems[id]; if(!it)return;
-  try{
-    await rRef.child('balance').transaction(b=>(b||0)+it.amount);
-    await rRef.child('pettyItems/'+id).remove();
-    const tx=txs().find(t=>t.ref===id);
-    if(tx)await rRef.child('transactions/'+tx.id).remove();
-    toast('已刪除','info');
-  }catch(e){toast('刪除失敗','error');}
-}
-
-// ═══════════════════════════════════════════════
 //  LEDGER
 // ═══════════════════════════════════════════════
 function renderLedger() {
@@ -1044,8 +953,8 @@ function renderReport() {
   document.getElementById('rpt-stats').innerHTML=`
     <div class="sc green"><div class="sc-icon">💰</div><div class="sc-label">總收入</div><div class="sc-val green">NT$${fmt(inc)}</div></div>
     <div class="sc amber"><div class="sc-icon">📤</div><div class="sc-label">總支出</div><div class="sc-val amber">NT$${fmt(exp)}</div></div>
-    <div class="sc blue"><div class="sc-icon">📋</div><div class="sc-label">固定支出</div><div class="sc-val blue">NT$${fmt(fexp)}</div></div>
-    <div class="sc violet"><div class="sc-icon">💸</div><div class="sc-label">零用支出</div><div class="sc-val violet">NT$${fmt(exp-fexp)}</div></div>`;
+    <div class="sc blue"><div class="sc-icon">📋</div><div class="sc-label">固定支出扣款</div><div class="sc-val blue">NT$${fmt(fexp)}</div></div>
+    <div class="sc violet"><div class="sc-icon">📊</div><div class="sc-label">淨收支結餘</div><div class="sc-val violet">NT$${fmt(inc-exp)}</div></div>`;
 
   const catMap={};
   mt.filter(t=>t.type==='out').forEach(t=>{const c=t.category||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
