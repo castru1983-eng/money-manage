@@ -281,8 +281,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         &nbsp;&nbsp;data JSONB NOT NULL DEFAULT '{}'::jsonb,<br>
         &nbsp;&nbsp;updated_at TIMESTAMPTZ DEFAULT NOW()<br>
         );<br>
-        ALTER TABLE rooms DISABLE ROW LEVEL SECURITY;<br>
-        ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
+        ALTER TABLE rooms DISABLE ROW LEVEL SECURITY;
       </div>
     </div>
     <div class="fg">
