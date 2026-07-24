@@ -363,7 +363,7 @@ textarea.fc{resize:vertical;min-height:90px;}
   </div>
   <div class="card mb6">
     <div class="ct">固定支出清單</div>
-    <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>類別</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
   </div>
   <div class="card"><div class="ct">本月執行狀況</div><div id="fix-exec"></div></div>
 </div>
@@ -378,7 +378,7 @@ textarea.fc{resize:vertical;min-height:90px;}
       <select class="fc" id="lf-l" onchange="renderLedger()"><option value="">所有地點</option></select>
       <input type="text" class="fc" id="lf-s" placeholder="搜尋..." oninput="renderLedger()"/>
     </div>
-    <div class="tw"><table><thead><tr><th>日期</th><th>類型</th><th>項目</th><th>地點</th><th>類別</th><th>相關人員</th><th>金額</th><th>餘額</th></tr></thead><tbody id="led-tbody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>日期</th><th>類型</th><th>項目</th><th>地點</th><th>相關人員</th><th>金額</th><th>餘額</th></tr></thead><tbody id="led-tbody"></tbody></table></div>
     <div class="flex g3i" style="margin-top:12px;flex-wrap:wrap" id="led-sum"></div>
   </div>
 </div>
@@ -391,13 +391,13 @@ textarea.fc{resize:vertical;min-height:90px;}
   </div>
   <div class="g4 mb6" id="rpt-stats"></div>
   <div class="g2 mb6">
-    <div class="card"><div class="ct">支出類別分佈</div><div style="position:relative;height:250px"><canvas id="ch-pie"></canvas></div></div>
+    <div class="card"><div class="ct">支出項目分佈</div><div style="position:relative;height:250px"><canvas id="ch-pie"></canvas></div></div>
     <div class="card"><div class="ct">各地點支出分佈 (P2/P3/宿舍)</div><div style="position:relative;height:250px"><canvas id="ch-loc"></canvas></div></div>
   </div>
   <div class="card mb6"><div class="ct">近 6 個月趨勢</div><div style="position:relative;height:230px"><canvas id="ch-line"></canvas></div></div>
   <div class="card">
     <div class="ct">本月支出明細</div>
-    <div class="tw"><table><thead><tr><th>日期</th><th>項目</th><th>地點</th><th>類別</th><th>負責人</th><th>金額</th></tr></thead><tbody id="rpt-tbody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>日期</th><th>項目</th><th>地點</th><th>負責人</th><th>金額</th></tr></thead><tbody id="rpt-tbody"></tbody></table></div>
   </div>
 </div>
 
@@ -420,10 +420,10 @@ textarea.fc{resize:vertical;min-height:90px;}
     </div>
     <div>
       <div class="card mb4">
-        <div class="ct">支出類別</div>
+        <div class="ct">支出項目選項</div>
         <div id="set-cats"></div>
         <div class="mt4 flex g2i">
-          <input type="text" class="fc" id="new-cat" placeholder="新類別名稱" style="flex:1"/>
+          <input type="text" class="fc" id="new-cat" placeholder="新項目名稱" style="flex:1"/>
           <button class="btn btn-sec btn-sm" onclick="addCat()">新增</button>
         </div>
       </div>
@@ -506,17 +506,14 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="mh"><div class="mt" id="fix-mtitle">新增固定支出</div><button class="mc" onclick="closeM('mo-fixed')">✕</button></div>
     <input type="hidden" id="fix-eid"/>
     <div class="fr">
-      <div class="fg"><label class="fl">項目名稱</label><select class="fc" id="fix-name" onchange="document.getElementById('fix-cat').value=this.value"></select></div>
-      <div class="fg"><label class="fl">類別</label><select class="fc" id="fix-cat"></select></div>
-    </div>
-    <div class="fr">
+      <div class="fg"><label class="fl">項目名稱</label><select class="fc" id="fix-name"></select></div>
       <div class="fg"><label class="fl">地點 / 場所 (P2/P3/宿舍)</label><select class="fc" id="fix-loc"></select></div>
-      <div class="fg"><label class="fl">每月金額 (NT$)</label><input type="number" class="fc" id="fix-amt" placeholder="0" min="1"/></div>
     </div>
     <div class="fr">
+      <div class="fg"><label class="fl">每月金額 (NT$)</label><input type="number" class="fc" id="fix-amt" placeholder="0" min="1"/></div>
       <div class="fg"><label class="fl">每月幾號扣款</label><input type="number" class="fc" id="fix-day" placeholder="1~31" min="1" max="31"/></div>
-      <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="fix-note" placeholder="例如：7月份電費單據說明..."/></div>
     </div>
+    <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="fix-note" placeholder="例如：7月份電費單據說明..."/></div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 單據範本 (選填)</label>
       <div class="photo-upload-box">
@@ -586,18 +583,17 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="mh"><div class="mt">✏️ 編輯交易紀錄 / 補傳照片</div><button class="mc" onclick="closeM('mo-tx-edit')">✕</button></div>
     <input type="hidden" id="txe-id"/>
     <div class="fr">
-      <div class="fg"><label class="fl">項目名稱</label><select class="fc" id="txe-name" onchange="document.getElementById('txe-cat').value=this.value"></select></div>
-      <div class="fg"><label class="fl">類別</label><select class="fc" id="txe-cat"></select></div>
-    </div>
-    <div class="fr">
+      <div class="fg"><label class="fl">項目名稱</label><select class="fc" id="txe-name"></select></div>
       <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="txe-loc"></select></div>
-      <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="txe-amt" placeholder="0" min="1"/></div>
     </div>
     <div class="fr">
+      <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="txe-amt" placeholder="0" min="1"/></div>
       <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="txe-date"/></div>
-      <div class="fg"><label class="fl">相關/經手人員</label><select class="fc" id="txe-paid"><option value="">不指定</option></select></div>
     </div>
-    <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="txe-note" placeholder="選填..."/></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">相關/經手人員</label><select class="fc" id="txe-paid"><option value="">不指定</option></select></div>
+      <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="txe-note" placeholder="選填..."/></div>
+    </div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 發票憑證 (選填)</label>
       <div class="photo-upload-box">
@@ -827,15 +823,15 @@ function renderDash() {
   document.getElementById('recent-tx').innerHTML = rec.length===0
     ? `<div class="empty"><div class="empty-icon">📭</div><p>尚無交易紀錄</p></div>`
     : rec.map(t=>`<div class="tx-item">
-        <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.category)}</div>
-        <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}·${t.category||'-'}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
+        <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
+        <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
         ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
         <button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>
         <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
       </div>`).join('');
 
   const catMap={};
-  mt.filter(t=>t.type==='out').forEach(t=>{const c=t.category||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
+  mt.filter(t=>t.type==='out').forEach(t=>{const c=t.name||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
   makePie('ch-dash',catMap,210);
 
   const af = fixes().filter(f=>f.active!==false);
@@ -845,7 +841,7 @@ function renderDash() {
         const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
         const done=ex&&ex.done;
         return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.category||'-'} · ${f.day?f.day+'號':'-'}扣款</div></div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.day?f.day+'號':'-'}扣款</div></div>
           <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
           ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button>`:
           `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
@@ -902,11 +898,10 @@ async function delDeposit(id) {
 function renderFixed() {
   const fs=fixes();
   document.getElementById('fix-tbody').innerHTML = fs.length===0
-    ? `<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
+    ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
     : fs.map(f=>`<tr>
         <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
         <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
-        <td><span class="badge b-violet">${f.category||'-'}</span></td>
         <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
         <td style="color:var(--t2)">${f.day?f.day+'號':'-'}</td>
         <td><span class="badge ${f.active!==false?'b-green':'b-gray'}">${f.active!==false?'啟用':'停用'}</span></td>
@@ -947,15 +942,14 @@ function renderLedger() {
   if(moF)list=list.filter(t=>t.date.startsWith(moF));
   if(tF)list=list.filter(t=>t.type===tF);
   if(lF)list=list.filter(t=>t.location===lF);
-  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.category||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF));
+  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF));
   document.getElementById('led-tbody').innerHTML=list.length===0
-    ?`<tr><td colspan="8" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
+    ?`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
     :list.map(t=>`<tr>
         <td>${t.date}</td>
         <td><span class="badge ${t.type==='in'?'b-green':'b-red'}">${t.type==='in'?'收入':'支出'}</span></td>
         <td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}</td>
         <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
-        <td>${t.category?`<span class="badge b-violet">${t.category}</span>`:'-'}</td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
         <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:6px"><span>NT$${fmt(t.balanceAfter)}</span><button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button></div></td>
@@ -985,7 +979,7 @@ function renderReport() {
     <div class="sc violet"><div class="sc-icon">📊</div><div class="sc-label">淨收支結餘</div><div class="sc-val violet">NT$${fmt(inc-exp)}</div></div>`;
 
   const catMap={};
-  mt.filter(t=>t.type==='out').forEach(t=>{const c=t.category||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
+  mt.filter(t=>t.type==='out').forEach(t=>{const c=t.name||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
   makePie('ch-pie',catMap,250);
 
   const locMap={};
@@ -996,11 +990,10 @@ function renderReport() {
 
   const out=mt.filter(t=>t.type==='out').sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('rpt-tbody').innerHTML=out.length===0
-    ?`<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:18px">無支出</td></tr>`
+    ?`<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:18px">無支出</td></tr>`
     :out.map(t=>`<tr>
         <td>${t.date}</td><td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:1px 5px;font-size:11px;margin-left:4px">✏️</button></td>
         <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
-        <td><span class="badge b-violet">${t.category||'-'}</span></td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:var(--red)">NT$${fmt(t.amount)}</td>
       </tr>`).join('');
@@ -1121,7 +1114,7 @@ async function submitDeposit(){
       const nb=r.snapshot.val();
       const dr=rRef.child('deposits').push(); const key=dr.key;
       await dr.set({memberId:mid,amount:amt,date,location:loc,note,photo:photo||null,createdAt:Date.now()});
-      await rRef.child('transactions').push({type:'in',name:mName(mid)+' 繳款',category:'繳款',location:loc,amount:amt,date,paidBy:mid,note,photo:photo||null,ref:key,balanceAfter:nb,createdAt:Date.now()});
+      await rRef.child('transactions').push({type:'in',name:mName(mid)+' 繳款',location:loc,amount:amt,date,paidBy:mid,note,photo:photo||null,ref:key,balanceAfter:nb,createdAt:Date.now()});
       closeM('mo-dep'); toast(mName(mid)+' 繳款 NT$'+fmt(amt),'success');
     }catch(e){toast('操作失敗','error');}
   }
@@ -1130,7 +1123,6 @@ async function submitDeposit(){
 // --- Fixed ---
 function openFixed(eid){
   fillCats('fix-name');
-  fillCats('fix-cat');
   fillLocs('fix-loc', false);
   const isE=!!eid;
   document.getElementById('fix-mtitle').textContent=isE?'✏️ 編輯固定支出':'＋ 新增固定支出';
@@ -1139,7 +1131,6 @@ function openFixed(eid){
     const f=D.fixedItems[eid];
     if(f){
       document.getElementById('fix-name').value=f.name||D.categories[0];
-      document.getElementById('fix-cat').value=f.category||D.categories[0];
       document.getElementById('fix-loc').value=f.location||'P2';
       document.getElementById('fix-amt').value=f.amount||'';
       document.getElementById('fix-day').value=f.day||'';
@@ -1153,11 +1144,11 @@ function openFixed(eid){
   openM('mo-fixed');
 }
 async function submitFixed(){
-  const name=document.getElementById('fix-name').value, cat=document.getElementById('fix-cat').value, loc=document.getElementById('fix-loc').value||'P2', amt=parseFloat(document.getElementById('fix-amt').value), day=parseInt(document.getElementById('fix-day').value)||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
+  const name=document.getElementById('fix-name').value, loc=document.getElementById('fix-loc').value||'P2', amt=parseFloat(document.getElementById('fix-amt').value), day=parseInt(document.getElementById('fix-day').value)||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
   if(!name)return toast('請選擇項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
-  const data={name,category:cat,location:loc,amount:amt,day,note,photo:photo||null};
+  const data={name,location:loc,amount:amt,day,note,photo:photo||null};
   if(eid)await rRef.child('fixedItems/'+eid).update(data);
   else await rRef.child('fixedItems').push({...data,active:true,createdAt:Date.now()});
   closeM('mo-fixed'); toast(eid?'已更新':'已新增固定支出','success');
@@ -1170,7 +1161,7 @@ function openExec(fid, exId){
   document.getElementById('exec-eid').value=exId||'';
   const isE = !!exId;
   document.getElementById('exec-title').textContent = isE ? '✏️ 編輯扣款紀錄 / 照片：' + f.name : '執行扣款：' + f.name;
-  document.getElementById('exec-info').innerHTML=`<div style="font-weight:800;margin-bottom:5px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${f.location||'P2'}</span></div><div style="font-size:24px;font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</div><div style="font-size:11px;color:var(--t3);margin-top:3px">${f.category||''} · ${mon()}份</div>`;
+  document.getElementById('exec-info').innerHTML=`<div style="font-weight:800;margin-bottom:5px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${f.location||'P2'}</span></div><div style="font-size:24px;font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</div><div style="font-size:11px;color:var(--t3);margin-top:3px">${mon()}份</div>`;
   fillMems('exec-paid',true);
   fillLocs('exec-loc', false);
   if (isE) {
