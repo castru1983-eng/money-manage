@@ -149,6 +149,25 @@ select.fc option{background:#1a202c;}
 textarea.fc{resize:vertical;min-height:90px;}
 .fr{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
 
+/* ── DATE INPUT ENHANCEMENTS ── */
+input[type="date"] {
+  color-scheme: dark;
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 14px;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.9) sepia(1) saturate(3) hue-rotate(170deg) brightness(1.6);
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  filter: invert(1) brightness(2) drop-shadow(0 0 5px var(--blue));
+  transform: scale(1.2);
+}
+
 /* ── MODAL ── */
 .mo{position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;z-index:500;opacity:0;pointer-events:none;transition:opacity var(--tr);}
 .mo.open{opacity:1;pointer-events:all;}
