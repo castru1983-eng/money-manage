@@ -366,7 +366,7 @@ textarea.fc{resize:vertical;min-height:90px;}
   </div>
   <div class="card">
     <div class="ct">固定支出清單</div>
-    <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>金額/月</th><th>繳款最後期限</th><th>本月繳款狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
   </div>
 </div>
 
@@ -514,7 +514,7 @@ textarea.fc{resize:vertical;min-height:90px;}
     </div>
     <div class="fr">
       <div class="fg"><label class="fl">每月金額 (NT$)</label><input type="number" class="fc" id="fix-amt" placeholder="0" min="1"/></div>
-      <div class="fg"><label class="fl">每月幾號扣款</label><input type="number" class="fc" id="fix-day" placeholder="1~31" min="1" max="31"/></div>
+      <div class="fg"><label class="fl">繳款最後期限 (每月幾號前)</label><input type="number" class="fc" id="fix-day" placeholder="例如：5 (代表每月5號前)" min="1" max="31"/></div>
     </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="fix-note" placeholder="例如：7月份電費單據說明..."/></div>
     <div class="fg">
@@ -928,7 +928,7 @@ function renderDash() {
         const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
         const done=ex&&ex.done;
         return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.day?f.day+'號':'-'}扣款</div></div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.day?f.day+'號前截止':'-'}</div></div>
           <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
           ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>`:
           `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`}
@@ -997,7 +997,7 @@ function renderFixed() {
           <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
           <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
           <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
-          <td style="color:var(--t2)">${f.day?f.day+'號':'-'}</td>
+          <td style="color:var(--t2)">${f.day?'每月 '+f.day+' 號前':'-'}</td>
           <td>${statusHtml}</td>
           <td><div class="flex g2i">
             <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯項目">✏️</button>
