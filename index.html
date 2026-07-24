@@ -958,7 +958,18 @@ async function delExec(exId) {
 function renderLedger() {
   fillLocs('lf-l', '所有地點');
   const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, lF=document.getElementById('lf-l').value, sF=document.getElementById('lf-s').value.toLowerCase();
-  let list=txs().sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
+  let list=txs().map(t => {
+    if (t.ref && D.fixedExecutions[t.ref]) {
+      const ex = D.fixedExecutions[t.ref];
+      const f = D.fixedItems[ex.fixedId];
+      return {
+        ...t,
+        location: t.location || ex.location || (f ? f.location : null),
+        name: t.name || (f ? f.name + '（固定）' : '固定支出')
+      };
+    }
+    return t;
+  }).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
   if(moF)list=list.filter(t=>t.date.startsWith(moF));
   if(tF)list=list.filter(t=>t.type===tF);
   if(lF)list=list.filter(t=>t.location===lF);
@@ -1189,10 +1200,21 @@ async function submitFixed(){
   if(!name)return toast('請選擇項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
-  const data={name,location:loc,amount:amt,day,note,photo:photo||null};
-  if(eid)await rRef.child('fixedItems/'+eid).update(data);
-  else await rRef.child('fixedItems').push({...data,active:true,createdAt:Date.now()});
-  closeM('mo-fixed'); toast(eid?'已更新':'已新增固定支出','success');
+  const data={name,category:name,location:loc,amount:amt,day,note,photo:photo||null};
+  if(eid) {
+    await rRef.child('fixedItems/'+eid).update(data);
+    const relatedExecs = execs().filter(e => e.fixedId === eid);
+    for (const ex of relatedExecs) {
+      await rRef.child('fixedExecutions/' + ex.id).update({ location: loc });
+      const tx = txs().find(t => t.ref === ex.id);
+      if (tx) {
+        await rRef.child('transactions/' + tx.id).update({ name: name + '（固定）', category: name, location: loc, amount: amt });
+      }
+    }
+  } else {
+    await rRef.child('fixedItems').push({...data,active:true,createdAt:Date.now()});
+  }
+  closeM('mo-fixed'); toast(eid?'已更新固定支出並同步帳目明細':'已新增固定支出','success');
 }
 
 // --- Exec ---
@@ -1233,8 +1255,8 @@ async function submitExec(){
     try {
       await rRef.child('fixedExecutions/' + exId).update({ paidBy: paid, location: loc, date, note, photo: photo || null });
       const tx = txs().find(t => t.ref === exId);
-      if (tx) await rRef.child('transactions/' + tx.id).update({ date, location: loc, paidBy: paid, note, photo: photo || null });
-      closeM('mo-exec'); toast('已更新扣款紀錄與照片', 'success');
+      if (tx) await rRef.child('transactions/' + tx.id).update({ name: f.name + '（固定）', category: f.name, amount: f.amount, date, location: loc, paidBy: paid, note, photo: photo || null });
+      closeM('mo-exec'); toast('已更新扣款紀錄與帳目明細', 'success');
     } catch (e) { toast('更新失敗：' + e.message, 'error'); }
   } else {
     const m=mon();
