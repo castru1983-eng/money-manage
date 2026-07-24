@@ -206,6 +206,13 @@ textarea.fc{resize:vertical;min-height:90px;}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
 @media(max-width:960px){#sidebar{transform:translateX(-100%);}#main{margin-left:0;padding:20px;}.g3,.g4{grid-template-columns:1fr 1fr;}}
 @media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr;}.fr{grid-template-columns:1fr;}.hero-amount{font-size:36px;}}
+/* ── PHOTO UPLOAD & PREVIEW ── */
+.photo-upload-box{margin-top:4px;}
+.photo-preview-wrap{display:flex;align-items:center;gap:10px;margin-top:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--rsm);padding:8px;}
+.photo-preview-img{width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:transform var(--tr);}
+.photo-preview-img:hover{transform:scale(1.05);}
+.photo-thumb{width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:transform var(--tr);vertical-align:middle;flex-shrink:0;}
+.photo-thumb:hover{transform:scale(1.15);border-color:var(--blue);}
 </style>
 </head>
 <body>
@@ -453,6 +460,18 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="f-amt" placeholder="0" min="1"/></div>
     <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="f-date"/></div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="f-note" placeholder="說明資金來源..."/></div>
+    <div class="fg">
+      <label class="fl">📷 上傳照片 / 憑證 (選填)</label>
+      <div class="photo-upload-box">
+        <input type="file" id="f-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'f-photo-prev', 'f-photo-val', 'f-photo-img')"/>
+        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('f-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <div id="f-photo-prev" class="photo-preview-wrap" style="display:none">
+          <img id="f-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val')">✕ 移除照片</button>
+        </div>
+        <input type="hidden" id="f-photo-val" value=""/>
+      </div>
+    </div>
     <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-funds')">取消</button><button class="btn btn-s" onclick="submitFunds()">確認注入</button></div>
   </div>
 </div>
@@ -466,6 +485,18 @@ textarea.fc{resize:vertical;min-height:90px;}
     </div>
     <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="d-date"/></div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="d-note" placeholder="例如：2024年7月份..."/></div>
+    <div class="fg">
+      <label class="fl">📷 上傳照片 / 匯款憑證 (選填)</label>
+      <div class="photo-upload-box">
+        <input type="file" id="d-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'd-photo-prev', 'd-photo-val', 'd-photo-img')"/>
+        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('d-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <div id="d-photo-prev" class="photo-preview-wrap" style="display:none">
+          <img id="d-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('d-photo-input', 'd-photo-prev', 'd-photo-val')">✕ 移除照片</button>
+        </div>
+        <input type="hidden" id="d-photo-val" value=""/>
+      </div>
+    </div>
     <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-dep')">取消</button><button class="btn btn-p" onclick="submitDeposit()">確認</button></div>
   </div>
 </div>
@@ -497,6 +528,18 @@ textarea.fc{resize:vertical;min-height:90px;}
       <div class="fg"><label class="fl">繳款日期</label><input type="date" class="fc" id="exec-date"/></div>
     </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="exec-note" placeholder="選填..."/></div>
+    <div class="fg">
+      <label class="fl">📷 上傳照片 / 繳費單據 (選填)</label>
+      <div class="photo-upload-box">
+        <input type="file" id="exec-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-img')"/>
+        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('exec-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <div id="exec-photo-prev" class="photo-preview-wrap" style="display:none">
+          <img id="exec-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('exec-photo-input', 'exec-photo-prev', 'exec-photo-val')">✕ 移除照片</button>
+        </div>
+        <input type="hidden" id="exec-photo-val" value=""/>
+      </div>
+    </div>
     <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-exec')">取消</button><button class="btn btn-p" onclick="submitExec()">確認扣款</button></div>
   </div>
 </div>
@@ -515,6 +558,18 @@ textarea.fc{resize:vertical;min-height:90px;}
       <div class="fg"><label class="fl">使用/負責人</label><select class="fc" id="pt-mem"><option value="">不指定</option></select></div>
     </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="pt-note" placeholder="選填..."/></div>
+    <div class="fg">
+      <label class="fl">📷 上傳照片 / 發票憑證 (選填)</label>
+      <div class="photo-upload-box">
+        <input type="file" id="pt-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'pt-photo-prev', 'pt-photo-val', 'pt-photo-img')"/>
+        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('pt-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <div id="pt-photo-prev" class="photo-preview-wrap" style="display:none">
+          <img id="pt-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('pt-photo-input', 'pt-photo-prev', 'pt-photo-val')">✕ 移除照片</button>
+        </div>
+        <input type="hidden" id="pt-photo-val" value=""/>
+      </div>
+    </div>
     <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-petty')">取消</button><button class="btn btn-p" onclick="submitPetty()">儲存</button></div>
   </div>
 </div>
@@ -524,6 +579,19 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="mh"><div class="mt">切換身份</div><button class="mc" onclick="closeM('mo-id')">✕</button></div>
     <div id="id-list" style="margin-bottom:14px"></div>
     <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-id')">取消</button></div>
+  </div>
+</div>
+
+<div class="mo" id="mo-photo">
+  <div class="md" style="width:540px;text-align:center">
+    <div class="mh"><div class="mt">🖼️ 查看照片 / 憑證</div><button class="mc" onclick="closeM('mo-photo')">✕</button></div>
+    <div style="margin:12px 0">
+      <img id="pv-img" src="" style="max-width:100%;max-height:68vh;border-radius:var(--rsm);border:1px solid var(--border);object-fit:contain;box-shadow:var(--sh)"/>
+    </div>
+    <div class="mf" style="justify-space-between;align-items:center">
+      <a id="pv-download" href="#" download="photo.jpg" class="btn btn-sec btn-sm" style="margin-right:auto">📥 下載大圖</a>
+      <button class="btn btn-p btn-sm" onclick="closeM('mo-photo')">關閉</button>
+    </div>
   </div>
 </div>
 
@@ -563,6 +631,90 @@ const petties = () => Object.entries(D.pettyItems||{}).map(([id,p])=>({id,...p})
 const mName = id => id && D.members[id] ? D.members[id].name : '-';
 const mColor = id => D.members[id] ? D.members[id].color : '#63b3ed';
 const catIcon = c => ICONS[c]||'📌';
+
+// ═══════════════════════════════════════════════
+//  PHOTO HELPERS
+// ═══════════════════════════════════════════════
+function compressImage(file, maxSide = 900, quality = 0.75) {
+  return new Promise((resolve) => {
+    if (!file) return resolve(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if (w > maxSide || h > maxSide) {
+          if (w > h) { h = Math.round((h * maxSide) / w); w = maxSide; }
+          else { w = Math.round((w * maxSide) / h); h = maxSide; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(null);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
+function handlePhotoSelect(inputEl, prevWrapId, hiddenValId, prevImgId) {
+  const file = inputEl.files[0];
+  if (!file) return;
+  compressImage(file).then(base64 => {
+    if (!base64) return;
+    document.getElementById(hiddenValId).value = base64;
+    const imgEl = document.getElementById(prevImgId);
+    if (imgEl) imgEl.src = base64;
+    const wrap = document.getElementById(prevWrapId);
+    if (wrap) wrap.style.display = 'flex';
+  });
+}
+
+function clearPhoto(fileInputId, prevWrapId, hiddenValId) {
+  const input = document.getElementById(fileInputId);
+  if (input) input.value = '';
+  const hidden = document.getElementById(hiddenValId);
+  if (hidden) hidden.value = '';
+  const prev = document.getElementById(prevWrapId);
+  if (prev) prev.style.display = 'none';
+}
+
+function setPhotoPreview(base64, prevWrapId, hiddenValId, prevImgId) {
+  const hidden = document.getElementById(hiddenValId);
+  const prev = document.getElementById(prevWrapId);
+  const imgEl = document.getElementById(prevImgId);
+  if (base64) {
+    if (hidden) hidden.value = base64;
+    if (imgEl) imgEl.src = base64;
+    if (prev) prev.style.display = 'flex';
+  } else {
+    if (hidden) hidden.value = '';
+    if (prev) prev.style.display = 'none';
+  }
+}
+
+async function getPhotoValue(fileInputId, hiddenValId) {
+  const fileInput = document.getElementById(fileInputId);
+  if (fileInput && fileInput.files && fileInput.files[0]) {
+    const compressed = await compressImage(fileInput.files[0]);
+    if (compressed) return compressed;
+  }
+  const hiddenInput = document.getElementById(hiddenValId);
+  return hiddenInput ? (hiddenInput.value || null) : null;
+}
+
+function viewPhoto(url) {
+  if (!url) return;
+  const img = document.getElementById('pv-img');
+  const dl = document.getElementById('pv-download');
+  if (img) img.src = url;
+  if (dl) dl.href = url;
+  openM('mo-photo');
+}
 
 // ═══════════════════════════════════════════════
 //  INIT
@@ -658,6 +810,7 @@ function renderDash() {
     : rec.map(t=>`<div class="tx-item">
         <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.category)}</div>
         <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}·${t.category||'-'}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
+        ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
         <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
       </div>`).join('');
 
@@ -674,7 +827,7 @@ function renderDash() {
         return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
           <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name}</div><div style="font-size:11px;color:var(--t3)">${f.category||'-'} · ${f.day?f.day+'號':'-'}扣款</div></div>
           <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
-          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>`:
+          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}`:
           `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
         </div>`;
       }).join('');
@@ -703,7 +856,7 @@ function renderMembers() {
         <td>${d.date}</td>
         <td><span class="badge b-blue">${mName(d.memberId)}</span></td>
         <td style="font-weight:900;color:var(--green)">NT$${fmt(d.amount)}</td>
-        <td style="color:var(--t3)">${d.note||'-'}</td>
+        <td style="color:var(--t3)">${d.note||'-'}${d.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${d.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
         <td><button class="btn btn-d btn-icon btn-sm" onclick="delDeposit('${d.id}')">🗑</button></td>
       </tr>`).join('');
 }
@@ -781,8 +934,9 @@ function renderPetty() {
         <td><span class="badge b-violet">${it.category||'-'}</span></td>
         <td>${it.memberId?`<span class="badge b-blue">${mName(it.memberId)}</span>`:'-'}</td>
         <td style="font-weight:900;color:var(--red)">NT$${fmt(it.amount)}</td>
-        <td style="color:var(--t3)">${it.note||'-'}</td>
+        <td style="color:var(--t3)">${it.note||'-'}${it.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${it.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
         <td><div class="flex g2i">
+          ${it.photo?`<button class="btn btn-sec btn-icon btn-sm" onclick="viewPhoto('${it.photo}')" title="查看照片">🖼️</button>`:''}
           <button class="btn btn-sec btn-icon btn-sm" onclick="openPetty('${it.id}')">✏️</button>
           <button class="btn btn-d btn-icon btn-sm" onclick="delPetty('${it.id}')">🗑</button>
         </div></td>
@@ -815,7 +969,7 @@ function renderLedger() {
     :list.map(t=>`<tr>
         <td>${t.date}</td>
         <td><span class="badge ${t.type==='in'?'b-green':'b-red'}">${t.type==='in'?'收入':'支出'}</span></td>
-        <td style="font-weight:700">${t.name}</td>
+        <td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}</td>
         <td>${t.category?`<span class="badge b-violet">${t.category}</span>`:'-'}</td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
@@ -858,7 +1012,7 @@ function renderReport() {
   document.getElementById('rpt-tbody').innerHTML=out.length===0
     ?`<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:18px">無支出</td></tr>`
     :out.map(t=>`<tr>
-        <td>${t.date}</td><td style="font-weight:700">${t.name}</td>
+        <td>${t.date}</td><td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}</td>
         <td><span class="badge b-violet">${t.category||'-'}</span></td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:var(--red)">NT$${fmt(t.amount)}</td>
@@ -909,32 +1063,34 @@ function fillMems(selId,empty=true){document.getElementById(selId).innerHTML=(em
 function fillCats(selId){document.getElementById(selId).innerHTML=D.categories.map(c=>`<option value="${c}">${c}</option>`).join('');}
 
 // --- Funds ---
-function openFunds(){document.getElementById('f-amt').value='';document.getElementById('f-date').value=tod();document.getElementById('f-note').value='';openM('mo-funds');}
+function openFunds(){document.getElementById('f-amt').value='';document.getElementById('f-date').value=tod();document.getElementById('f-note').value='';clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val');openM('mo-funds');}
 async function submitFunds(){
   const amt=parseFloat(document.getElementById('f-amt').value), date=document.getElementById('f-date').value, note=document.getElementById('f-note').value.trim();
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   if(!date)return toast('請選擇日期','error');
+  const photo = await getPhotoValue('f-photo-input', 'f-photo-val');
   try{
     const r=await rRef.child('balance').transaction(b=>(b||0)+amt);
     const nb=r.snapshot.val();
-    await rRef.child('transactions').push({type:'in',name:'資金注入'+(note?`（${note}）`:''),category:'注入',amount:amt,date,note,paidBy:CFG.currentMemberId||null,balanceAfter:nb,createdAt:Date.now()});
+    await rRef.child('transactions').push({type:'in',name:'資金注入'+(note?`（${note}）`:''),category:'注入',amount:amt,date,note,photo:photo||null,paidBy:CFG.currentMemberId||null,balanceAfter:nb,createdAt:Date.now()});
     closeM('mo-funds'); toast('已注入 NT$'+fmt(amt),'success');
   }catch(e){toast('操作失敗','error');}
 }
 
 // --- Deposit ---
-function openDeposit(){fillMems('d-mem',false);document.getElementById('d-amt').value='';document.getElementById('d-date').value=tod();document.getElementById('d-note').value='';if(CFG.currentMemberId)document.getElementById('d-mem').value=CFG.currentMemberId;openM('mo-dep');}
+function openDeposit(){fillMems('d-mem',false);document.getElementById('d-amt').value='';document.getElementById('d-date').value=tod();document.getElementById('d-note').value='';clearPhoto('d-photo-input', 'd-photo-prev', 'd-photo-val');if(CFG.currentMemberId)document.getElementById('d-mem').value=CFG.currentMemberId;openM('mo-dep');}
 async function submitDeposit(){
   const mid=document.getElementById('d-mem').value, amt=parseFloat(document.getElementById('d-amt').value), date=document.getElementById('d-date').value, note=document.getElementById('d-note').value.trim();
   if(!mid)return toast('請選擇成員','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   if(!date)return toast('請選擇日期','error');
+  const photo = await getPhotoValue('d-photo-input', 'd-photo-val');
   try{
     const r=await rRef.child('balance').transaction(b=>(b||0)+amt);
     const nb=r.snapshot.val();
     const dr=rRef.child('deposits').push(); const did=dr.key;
-    await dr.set({memberId:mid,amount:amt,date,note,createdAt:Date.now()});
-    await rRef.child('transactions').push({type:'in',name:mName(mid)+' 繳款',category:'繳款',amount:amt,date,paidBy:mid,ref:did,balanceAfter:nb,createdAt:Date.now()});
+    await dr.set({memberId:mid,amount:amt,date,note,photo:photo||null,createdAt:Date.now()});
+    await rRef.child('transactions').push({type:'in',name:mName(mid)+' 繳款',category:'繳款',amount:amt,date,paidBy:mid,note,photo:photo||null,ref:did,balanceAfter:nb,createdAt:Date.now()});
     closeM('mo-dep'); toast(mName(mid)+' 繳款 NT$'+fmt(amt),'success');
   }catch(e){toast('操作失敗','error');}
 }
@@ -969,6 +1125,7 @@ function openExec(fid){
   if(CFG.currentMemberId)document.getElementById('exec-paid').value=CFG.currentMemberId;
   document.getElementById('exec-date').value=tod();
   document.getElementById('exec-note').value='';
+  clearPhoto('exec-photo-input', 'exec-photo-prev', 'exec-photo-val');
   openM('mo-exec');
 }
 async function submitExec(){
@@ -978,13 +1135,14 @@ async function submitExec(){
   const m=mon();
   if(execs().find(e=>e.fixedId===fid&&e.month===m&&e.done))return toast('本月已執行過','info');
   if(D.balance<f.amount)return toast('餘額不足！','error');
+  const photo = await getPhotoValue('exec-photo-input', 'exec-photo-val');
   try{
     const r=await rRef.child('balance').transaction(b=>{if((b||0)<f.amount)return;return(b||0)-f.amount;});
     if(!r.committed)return toast('餘額不足','error');
     const nb=r.snapshot.val();
     const er=rRef.child('fixedExecutions').push();
-    await er.set({fixedId:fid,month:m,done:true,date,paidBy:paid,note,createdAt:Date.now()});
-    await rRef.child('transactions').push({type:'out',name:f.name+'（固定）',category:f.category,amount:f.amount,date,paidBy:paid,note,ref:er.key,balanceAfter:nb,createdAt:Date.now()});
+    await er.set({fixedId:fid,month:m,done:true,date,paidBy:paid,note,photo:photo||null,createdAt:Date.now()});
+    await rRef.child('transactions').push({type:'out',name:f.name+'（固定）',category:f.category,amount:f.amount,date,paidBy:paid,note,photo:photo||null,ref:er.key,balanceAfter:nb,createdAt:Date.now()});
     closeM('mo-exec'); toast('已扣款 NT$'+fmt(f.amount)+'，繳款人：'+mName(paid),'success');
   }catch(e){toast('操作失敗','error');}
 }
@@ -995,8 +1153,25 @@ function openPetty(eid){
   const isE=!!eid;
   document.getElementById('petty-mtitle').textContent=isE?'✏️ 編輯支出':'＋ 新增零用金支出';
   document.getElementById('petty-eid').value=eid||'';
-  if(isE){const it=D.pettyItems[eid];if(it){document.getElementById('pt-name').value=it.name||'';document.getElementById('pt-cat').value=it.category||'';document.getElementById('pt-amt').value=it.amount||'';document.getElementById('pt-date').value=it.date||tod();document.getElementById('pt-mem').value=it.memberId||'';document.getElementById('pt-note').value=it.note||'';}}
-  else{document.getElementById('pt-name').value='';document.getElementById('pt-amt').value='';document.getElementById('pt-date').value=tod();document.getElementById('pt-note').value='';if(CFG.currentMemberId)document.getElementById('pt-mem').value=CFG.currentMemberId;}
+  if(isE){
+    const it=D.pettyItems[eid];
+    if(it){
+      document.getElementById('pt-name').value=it.name||'';
+      document.getElementById('pt-cat').value=it.category||'';
+      document.getElementById('pt-amt').value=it.amount||'';
+      document.getElementById('pt-date').value=it.date||tod();
+      document.getElementById('pt-mem').value=it.memberId||'';
+      document.getElementById('pt-note').value=it.note||'';
+      setPhotoPreview(it.photo, 'pt-photo-prev', 'pt-photo-val', 'pt-photo-img');
+    }
+  } else {
+    document.getElementById('pt-name').value='';
+    document.getElementById('pt-amt').value='';
+    document.getElementById('pt-date').value=tod();
+    document.getElementById('pt-note').value='';
+    if(CFG.currentMemberId)document.getElementById('pt-mem').value=CFG.currentMemberId;
+    clearPhoto('pt-photo-input', 'pt-photo-prev', 'pt-photo-val');
+  }
   openM('mo-petty');
 }
 async function submitPetty(){
@@ -1004,6 +1179,7 @@ async function submitPetty(){
   if(!name)return toast('請輸入項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   if(!date)return toast('請選擇日期','error');
+  const photo = await getPhotoValue('pt-photo-input', 'pt-photo-val');
   if(eid){
     const old=D.pettyItems[eid]; if(!old)return;
     const diff=amt-old.amount;
@@ -1012,9 +1188,9 @@ async function submitPetty(){
       const r=await rRef.child('balance').transaction(b=>{const nb=(b||0)-diff;if(nb<0&&diff>0)return;return nb;});
       if(!r.committed)return toast('餘額不足','error');
       const nb=r.snapshot.val();
-      await rRef.child('pettyItems/'+eid).update({name,category:cat,amount:amt,date,memberId:mid,note});
+      await rRef.child('pettyItems/'+eid).update({name,category:cat,amount:amt,date,memberId:mid,note,photo:photo||null});
       const tx=txs().find(t=>t.ref===eid);
-      if(tx)await rRef.child('transactions/'+tx.id).update({name,category:cat,amount:amt,date,paidBy:mid,note,balanceAfter:nb});
+      if(tx)await rRef.child('transactions/'+tx.id).update({name,category:cat,amount:amt,date,paidBy:mid,note,photo:photo||null,balanceAfter:nb});
       closeM('mo-petty'); toast('已更新','success');
     }catch(e){toast('更新失敗','error');}
   } else {
@@ -1024,8 +1200,8 @@ async function submitPetty(){
       if(!r.committed)return toast('餘額不足','error');
       const nb=r.snapshot.val();
       const pr=rRef.child('pettyItems').push(); const pid=pr.key;
-      await pr.set({name,category:cat,amount:amt,date,memberId:mid,note,createdAt:Date.now()});
-      await rRef.child('transactions').push({type:'out',name,category:cat,amount:amt,date,paidBy:mid,note,ref:pid,balanceAfter:nb,createdAt:Date.now()});
+      await pr.set({name,category:cat,amount:amt,date,memberId:mid,note,photo:photo||null,createdAt:Date.now()});
+      await rRef.child('transactions').push({type:'out',name,category:cat,amount:amt,date,paidBy:mid,note,photo:photo||null,ref:pid,balanceAfter:nb,createdAt:Date.now()});
       closeM('mo-petty'); toast('已記錄 NT$'+fmt(amt),'success');
     }catch(e){toast('操作失敗','error');}
   }
