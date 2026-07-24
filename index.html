@@ -1235,20 +1235,18 @@ async function submitExec(){
       const tx = txs().find(t => t.ref === exId);
       if (tx) await rRef.child('transactions/' + tx.id).update({ date, location: loc, paidBy: paid, note, photo: photo || null });
       closeM('mo-exec'); toast('已更新扣款紀錄與照片', 'success');
-    } catch (e) { toast('更新失敗', 'error'); }
+    } catch (e) { toast('更新失敗：' + e.message, 'error'); }
   } else {
     const m=mon();
     if(execs().find(e=>e.fixedId===fid&&e.month===m&&e.done))return toast('本月已執行過','info');
-    if(D.balance<f.amount)return toast('餘額不足！','error');
     try{
-      const r=await rRef.child('balance').transaction(b=>{if((b||0)<f.amount)return;return(b||0)-f.amount;});
-      if(!r.committed)return toast('餘額不足','error');
+      const r=await rRef.child('balance').transaction(b=>(b||0)-f.amount);
       const nb=r.snapshot.val();
       const er=rRef.child('fixedExecutions').push();
       await er.set({fixedId:fid,month:m,done:true,location:loc,date,paidBy:paid,note,photo:photo||null,createdAt:Date.now()});
-      await rRef.child('transactions').push({type:'out',name:f.name+'（固定）',category:f.category,location:loc,amount:f.amount,date,paidBy:paid,note,photo:photo||null,ref:er.key,balanceAfter:nb,createdAt:Date.now()});
-      closeM('mo-exec'); toast('已扣款 NT$'+fmt(f.amount)+'，繳款人：'+mName(paid),'success');
-    }catch(e){toast('操作失敗','error');}
+      await rRef.child('transactions').push({type:'out',name:f.name+'（固定）',category:f.name||'固定支出',location:loc,amount:f.amount,date,paidBy:paid,note,photo:photo||null,ref:er.key,balanceAfter:nb,createdAt:Date.now()});
+      closeM('mo-exec'); toast('已成功扣款 NT$'+fmt(f.amount)+(paid?'，繳款人：'+mName(paid):''),'success');
+    }catch(e){toast('扣款失敗：'+e.message,'error');}
   }
 }
 
