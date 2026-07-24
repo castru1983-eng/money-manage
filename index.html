@@ -7,8 +7,7 @@
 <meta name="description" content="多人即時共用金管理，固定支出、零用金、月結報表"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
@@ -269,19 +268,29 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   </div>
 
   <div class="setup-step active" id="ss1">
-    <div class="setup-title">連接 Firebase 資料庫</div>
-    <div class="setup-sub">貼上你的 Firebase Realtime Database 設定碼，讓三人即時同步資料。<br><a href="#" onclick="toggleHelp();return false;" style="color:var(--blue)">👉 查看設定教學</a></div>
+    <div class="setup-title">連接 Supabase 資料庫</div>
+    <div class="setup-sub">輸入你的 Supabase 專案網址與 API Key，讓三人即時同步資料。<br><a href="#" onclick="toggleHelp();return false;" style="color:var(--blue)">👉 查看 3 分鐘設定與 SQL 建表教學</a></div>
     <div class="help-box" id="help-box" style="display:none">
-      <strong style="color:var(--t1)">Firebase 設定步驟（5 分鐘）：</strong><br>
-      1. 前往 <a href="https://console.firebase.google.com" target="_blank" style="color:var(--blue)">console.firebase.google.com</a><br>
-      2. 建立新專案（任意名稱）<br>
-      3. 左側「Realtime Database」→「建立資料庫」→「以測試模式開始」<br>
-      4. 「專案設定」→「你的應用程式」→「Web」→ 複製 firebaseConfig<br>
-      5. 貼到下方欄位（複製 { } 內的 JSON）
+      <strong style="color:var(--t1)">Supabase 設定步驟（3 分鐘）：</strong><br>
+      1. 前往 <a href="https://supabase.com" target="_blank" style="color:var(--blue)">supabase.com</a> 免費註冊專案<br>
+      2. 在 **Project Settings -> API** 複製 **Project URL** 與 **anon public Key** 貼到下方<br>
+      3. 在 **SQL Editor** 執行下方指令建立資料表與開啟即時廣播：<br>
+      <div style="background:rgba(0,0,0,.5);padding:8px 10px;border-radius:6px;font-family:monospace;font-size:11px;margin-top:4px;user-select:all;color:#76e4f7">
+        CREATE TABLE IF NOT EXISTS rooms (<br>
+        &nbsp;&nbsp;room_code TEXT PRIMARY KEY,<br>
+        &nbsp;&nbsp;data JSONB NOT NULL DEFAULT '{}'::jsonb,<br>
+        &nbsp;&nbsp;updated_at TIMESTAMPTZ DEFAULT NOW()<br>
+        );<br>
+        ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
+      </div>
     </div>
     <div class="fg">
-      <label class="fl">Firebase Config（貼上 JSON 物件）</label>
-      <textarea class="fc" id="s-config" rows="8" placeholder='貼上 Firebase Config，例如：&#10;{&#10;  "apiKey": "AIza...",&#10;  "authDomain": "xxx.firebaseapp.com",&#10;  "databaseURL": "https://xxx-default-rtdb.firebaseio.com",&#10;  "projectId": "xxx"&#10;}'></textarea>
+      <label class="fl">Supabase URL (專案網址)</label>
+      <input type="text" class="fc" id="s-supabase-url" placeholder="例如：https://xyzcompany.supabase.co"/>
+    </div>
+    <div class="fg">
+      <label class="fl">Supabase Anon Key (API 金鑰)</label>
+      <textarea class="fc" id="s-supabase-key" rows="4" placeholder="例如：eyJhbGciOi... (anon public Key)"></textarea>
     </div>
     <button class="btn btn-p" style="width:100%" onclick="step1()">下一步 →</button>
   </div>
@@ -894,66 +903,103 @@ function viewPhoto(url) {
 // ═══════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════
+let supabaseClient = null;
+let roomSubscription = null;
+
+// ═══════════════════════════════════════════════
+//  INIT & SUPABASE REALTIME
+// ═══════════════════════════════════════════════
 function init() {
   try {
     const s = localStorage.getItem(LK);
-    if (s) { CFG = JSON.parse(s); if (CFG.firebaseConfig && CFG.roomCode) { startApp(); return; } }
+    if (s) {
+      CFG = JSON.parse(s);
+      if (CFG.supabaseUrl && CFG.supabaseKey && CFG.roomCode) {
+        startApp();
+        return;
+      }
+    }
   } catch(e) {}
   showSetup();
 }
 
-function startApp() {
+async function saveData() {
+  if (!supabaseClient || !CFG.roomCode) return;
   try {
-    if (!firebase.apps.length) firebase.initializeApp(CFG.firebaseConfig);
-    db = firebase.database();
-    rRef = db.ref('rooms/' + CFG.roomCode);
+    await supabaseClient.from('rooms').upsert({
+      room_code: CFG.roomCode,
+      data: D,
+      updated_at: new Date().toISOString()
+    });
+  } catch(e) {
+    toast('Supabase 儲存失敗：' + e.message, 'error');
+  }
+}
+
+async function startApp() {
+  try {
+    if (!window.supabase) return toast('Supabase SDK 未能成功載入', 'error');
+    supabaseClient = supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey);
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
     document.getElementById('lf-mo').value = '';
     document.getElementById('rpt-mo').value = mon();
+
+    const { data, error } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).single();
+    if (error && error.code === 'PGRST116') {
+      await initRoom();
+    } else if (data && data.data) {
+      D = data.data;
+    }
     listen();
-  } catch(e) { toast('Firebase 連線失敗：'+e.message,'error'); showSetup(); }
+  } catch(e) {
+    toast('Supabase 連線失敗：' + e.message, 'error');
+    showSetup();
+  }
 }
 
 function listen() {
-  db.ref('.info/connected').on('value', s => {
-    const ok = s.val();
-    document.getElementById('sync-dot').className = 'sync-dot'+(ok?'':' off');
-    document.getElementById('sync-txt').textContent = ok ? '即時同步中' : '重新連線...';
-  });
-  rRef.on('value', snap => {
-    const v = snap.val();
-    if (!v) { initRoom(); return; }
-    D.balance = typeof v.balance === 'number' ? v.balance : 0;
-    D.members = v.members||{};
-    D.categories = v.categories ? (Array.isArray(v.categories)?v.categories:Object.values(v.categories)) : [...DEF_CATS];
-    D.locations = v.locations ? (Array.isArray(v.locations)?v.locations:Object.values(v.locations)) : [...DEF_LOCS];
-    D.transactions = v.transactions||{};
-    D.fixedItems = v.fixedItems||{};
-    D.fixedExecutions = v.fixedExecutions||{};
-    D.deposits = v.deposits||{};
-    D.settings = v.settings||{};
+  if (roomSubscription) supabaseClient.removeChannel(roomSubscription);
 
-    // Auto-migration for member account & role credentials if missing
-    let needUpdate = false;
-    Object.keys(D.members).forEach((id, idx) => {
-      const m = D.members[id];
-      if (!m.username) { m.username = idx === 0 ? 'admin' : (idx === 1 ? 'user' : 'user' + (idx + 1)); needUpdate = true; }
-      if (!m.password) { m.password = idx === 0 ? 'admin888' : 'user123'; needUpdate = true; }
-      if (!m.role) { m.role = idx === 0 ? 'admin' : 'user'; needUpdate = true; }
+  renderAppUI();
+
+  roomSubscription = supabaseClient
+    .channel('room-' + CFG.roomCode)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: 'room_code=eq.' + CFG.roomCode }, (payload) => {
+      if (payload.new && payload.new.data) {
+        D = payload.new.data;
+        renderAppUI();
+      }
+    })
+    .subscribe((status) => {
+      const ok = status === 'SUBSCRIBED';
+      const dot = document.getElementById('sync-dot');
+      if (dot) dot.className = 'sync-dot' + (ok ? '' : ' off');
+      const txt = document.getElementById('sync-txt');
+      if (txt) txt.textContent = ok ? '即時同步中 (Supabase)' : '連線中...';
     });
-    if (needUpdate) {
-      rRef.child('members').set(D.members);
-    }
+}
 
-    const me = CFG && D.members[CFG.currentMemberId];
-    const isAdm = isAdmin();
-    document.getElementById('sb-name').textContent = me ? me.name : '未登入';
-    const elBadge = document.getElementById('sb-role-badge');
-    if (elBadge) elBadge.textContent = me ? (isAdm ? '👑 管理者' : '👤 一般使用者') : '';
-    updateNavBadges();
-    renderPage(curPage);
+function renderAppUI() {
+  let needUpdate = false;
+  D.members = D.members || {};
+  Object.keys(D.members).forEach((id, idx) => {
+    const m = D.members[id];
+    if (!m.username) { m.username = idx === 0 ? 'admin' : (idx === 1 ? 'user' : 'user' + (idx + 1)); needUpdate = true; }
+    if (!m.password) { m.password = idx === 0 ? 'admin888' : 'user123'; needUpdate = true; }
+    if (!m.role) { m.role = idx === 0 ? 'admin' : 'user'; needUpdate = true; }
   });
+  if (needUpdate) {
+    saveData();
+  }
+
+  const me = CFG && D.members[CFG.currentMemberId];
+  const isAdm = isAdmin();
+  document.getElementById('sb-name').textContent = me ? me.name : '未登入';
+  const elBadge = document.getElementById('sb-role-badge');
+  if (elBadge) elBadge.textContent = me ? (isAdm ? '👑 管理者' : '👤 一般使用者') : '';
+  updateNavBadges();
+  renderPage(curPage);
 }
 
 async function initRoom() {
@@ -961,7 +1007,18 @@ async function initRoom() {
   const m1 = gid(), m2 = gid();
   ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
   ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
-  await rRef.set({balance:0,members:ms,categories:DEF_CATS,locations:DEF_LOCS,transactions:{},fixedItems:{},fixedExecutions:{},deposits:{}});
+  D = {
+    balance: 0,
+    members: ms,
+    categories: DEF_CATS,
+    locations: DEF_LOCS,
+    transactions: {},
+    fixedItems: {},
+    fixedExecutions: {},
+    deposits: {},
+    settings: { alertDays: 3 }
+  };
+  await saveData();
 }
 
 // ═══════════════════════════════════════════════
@@ -1308,23 +1365,21 @@ function renderLedger() {
 }
 
 async function delTx(txId) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除交易紀錄', 'error');
   const t = D.transactions[txId]; if (!t) return;
   if (!confirm(`確定刪除「${t.name}」NT$${fmt(t.amount)} 這筆紀錄？\n系統將自動調整共用金餘額！`)) return;
   try {
     const isInc = t.type === 'in';
     const balChange = isInc ? -t.amount : t.amount;
-    const r = await rRef.child('balance').transaction(b => {
-      const nb = (b || 0) + balChange;
-      if (nb < 0 && balChange < 0) return;
-      return nb;
-    });
-    if (!r.committed) return toast('餘額不足，無法刪除此筆收入紀錄！', 'error');
-    await rRef.child('transactions/' + txId).remove();
+    if ((D.balance || 0) + balChange < 0 && balChange < 0) return toast('餘額不足，無法刪除此筆收入紀錄！', 'error');
+    D.balance = (D.balance || 0) + balChange;
+    delete D.transactions[txId];
     if (t.ref) {
-      if (D.deposits[t.ref]) await rRef.child('deposits/' + t.ref).remove();
-      if (D.fixedExecutions[t.ref]) await rRef.child('fixedExecutions/' + t.ref).remove();
+      if (D.deposits[t.ref]) delete D.deposits[t.ref];
+      if (D.fixedExecutions[t.ref]) delete D.fixedExecutions[t.ref];
     }
     toast(`已刪除紀錄，金額 NT$${fmt(t.amount)} 已${isInc ? '從餘額扣除' : '自動退回共用金餘額'}`, 'info');
+    await saveData();
   } catch (e) { toast('刪除失敗：' + e.message, 'error'); }
 }
 
@@ -1429,33 +1484,80 @@ function renderSettings() {
 async function setAlertDays(val) {
   if (!isAdmin()) return toast('權限不足：僅管理者可設定提醒天數', 'error');
   const days = parseInt(val, 10) || 3;
-  await rRef.child('settings/alertDays').set(days);
+  D.settings = D.settings || {};
+  D.settings.alertDays = days;
   toast(`已設定固定支出到期提醒為 ${days} 天前`, 'success');
   updateNavBadges();
+  await saveData();
 }
 
-function chUser(id, username) {
+async function chUser(id, username) {
   if (!isAdmin()) return toast('權限不足：僅管理者可修改帳號', 'error');
-  if (username.trim()) rRef.child('members/' + id + '/username').set(username.trim());
+  if (username.trim()) {
+    if (D.members[id]) D.members[id].username = username.trim();
+    await saveData();
+  }
 }
-function chPass(id, password) {
+async function chPass(id, password) {
   if (!isAdmin()) return toast('權限不足：僅管理者可修改密碼', 'error');
-  if (password.trim()) rRef.child('members/' + id + '/password').set(password.trim());
+  if (password.trim()) {
+    if (D.members[id]) D.members[id].password = password.trim();
+    await saveData();
+  }
 }
-function chRole(id, role) {
+async function chRole(id, role) {
   if (!isAdmin()) return toast('權限不足：僅管理者可修改權限', 'error');
-  rRef.child('members/' + id + '/role').set(role);
+  if (D.members[id]) D.members[id].role = role;
   toast(`已將成員權限更新為 ${role === 'admin' ? '👑 管理者' : '👤 一般使用者'}`, 'success');
+  await saveData();
 }
 
-function renMem(id,n){if(n.trim())rRef.child('members/'+id+'/name').set(n.trim());}
-function chColor(id,c){rRef.child('members/'+id+'/color').set(c);}
-function addMember(){const n=prompt('輸入新成員名稱：');if(!n?.trim())return;rRef.child('members').push({name:n.trim(),color:COLORS[mems().length%COLORS.length],createdAt:Date.now()});}
-async function delMem(id){if(!confirm('確定刪除？'))return;await rRef.child('members/'+id).remove();}
-async function addCat(){const v=document.getElementById('new-cat').value.trim();if(!v||D.categories.includes(v))return;await rRef.child('categories').set([...D.categories,v]);document.getElementById('new-cat').value='';}
-async function delCat(i){await rRef.child('categories').set(D.categories.filter((_,j)=>j!==i));}
-async function addLoc(){const v=document.getElementById('new-loc').value.trim();const curLocs=D.locations&&D.locations.length?D.locations:[...DEF_LOCS];if(!v||curLocs.includes(v))return;await rRef.child('locations').set([...curLocs,v]);document.getElementById('new-loc').value='';}
-async function delLoc(i){const curLocs=D.locations&&D.locations.length?D.locations:[...DEF_LOCS];await rRef.child('locations').set(curLocs.filter((_,j)=>j!==i));}
+async function renMem(id,n){
+  if (!isAdmin()) return toast('權限不足：僅管理者可編輯成員名稱', 'error');
+  if(n.trim() && D.members[id]) { D.members[id].name = n.trim(); await saveData(); }
+}
+async function chColor(id,c){
+  if (!isAdmin()) return toast('權限不足：僅管理者可修改顏色', 'error');
+  if(D.members[id]) { D.members[id].color = c; await saveData(); }
+}
+async function addMember(){
+  if (!isAdmin()) return toast('權限不足：僅管理者可新增成員', 'error');
+  const n=prompt('輸入新成員名稱：');if(!n?.trim())return;
+  const id=gid();
+  D.members[id] = { id, name:n.trim(), username: 'user_' + id.slice(0,4), password: '123', role: 'user', color:COLORS[mems().length%COLORS.length], createdAt:Date.now() };
+  await saveData();
+}
+async function delMem(id){
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除成員', 'error');
+  if(!confirm('確定刪除此成員帳號？'))return;
+  delete D.members[id];
+  await saveData();
+}
+async function addCat(){
+  if (!isAdmin()) return toast('權限不足：僅管理者可新增類別', 'error');
+  const v=document.getElementById('new-cat').value.trim();if(!v||D.categories.includes(v))return;
+  D.categories.push(v);
+  document.getElementById('new-cat').value='';
+  await saveData();
+}
+async function delCat(i){
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除類別', 'error');
+  D.categories = D.categories.filter((_,j)=>j!==i);
+  await saveData();
+}
+async function addLoc(){
+  if (!isAdmin()) return toast('權限不足：僅管理者可新增地點', 'error');
+  const v=document.getElementById('new-loc').value.trim();const curLocs=D.locations&&D.locations.length?D.locations:[...DEF_LOCS];if(!v||curLocs.includes(v))return;
+  D.locations = [...curLocs, v];
+  document.getElementById('new-loc').value='';
+  await saveData();
+}
+async function delLoc(i){
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除地點', 'error');
+  const curLocs=D.locations&&D.locations.length?D.locations:[...DEF_LOCS];
+  D.locations = curLocs.filter((_,j)=>j!==i);
+  await saveData();
+}
 function resetConn(){if(!confirm('確定重設連線？'))return;localStorage.removeItem(LK);location.reload();}
 function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({...D,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='共用金備份_'+tod()+'.json';a.click();toast('已匯出','success');}
 
@@ -1478,11 +1580,16 @@ async function submitFunds(){
   if(!date)return toast('請選擇日期','error');
   const photo = await getPhotoValue('f-photo-input', 'f-photo-val');
   try{
-    const r=await rRef.child('balance').transaction(b=>(b||0)+amt);
-    const nb=r.snapshot.val();
-    await rRef.child('transactions').push({type:'in',name:'資金注入'+(note?`（${note}）`:''),category:'注入',location:loc,amount:amt,date,note,photo:photo||null,paidBy:CFG.currentMemberId||null,balanceAfter:nb,createdAt:Date.now()});
-    closeM('mo-funds'); toast('已注入 NT$'+fmt(amt),'success');
-  }catch(e){toast('操作失敗','error');}
+    D.balance = (D.balance || 0) + amt;
+    const txId = 'tx_' + gid();
+    D.transactions[txId] = {
+      id: txId, type: 'in', name: '資金注入' + (note ? `（${note}）` : ''), category: '注入',
+      location: loc, amount: amt, date, note, photo: photo || null,
+      paidBy: CFG.currentMemberId || null, balanceAfter: D.balance, createdAt: Date.now()
+    };
+    closeM('mo-funds'); toast('已成功注入資金 NT$' + fmt(amt), 'success');
+    await saveData();
+  }catch(e){toast('操作失敗：' + e.message, 'error');}
 }
 
 // --- Deposit ---
@@ -1521,22 +1628,25 @@ async function submitDeposit(){
     const old = D.deposits[did]; if (!old) return;
     const diff = amt - old.amount;
     try {
-      const r = await rRef.child('balance').transaction(b => (b||0) + diff);
-      const nb = r.snapshot.val();
-      await rRef.child('deposits/' + did).update({ memberId: mid, amount: amt, date, location: loc, note, photo: photo || null });
+      D.balance = (D.balance || 0) + diff;
+      D.deposits[did] = { ...old, memberId: mid, amount: amt, date, location: loc, note, photo: photo || null };
       const tx = txs().find(t => t.ref === did);
-      if (tx) await rRef.child('transactions/' + tx.id).update({ name: mName(mid) + ' 繳款', amount: amt, date, location: loc, paidBy: mid, note, photo: photo || null, balanceAfter: nb });
+      if (tx && D.transactions[tx.id]) {
+        D.transactions[tx.id] = { ...D.transactions[tx.id], name: mName(mid) + ' 繳款', amount: amt, date, location: loc, paidBy: mid, note, photo: photo || null, balanceAfter: D.balance };
+      }
       closeM('mo-dep'); toast('已更新繳款紀錄與照片', 'success');
+      await saveData();
     } catch (e) { toast('更新失敗', 'error'); }
   } else {
     try{
-      const r=await rRef.child('balance').transaction(b=>(b||0)+amt);
-      const nb=r.snapshot.val();
-      const dr=rRef.child('deposits').push(); const key=dr.key;
-      await dr.set({memberId:mid,amount:amt,date,location:loc,note,photo:photo||null,createdAt:Date.now()});
-      await rRef.child('transactions').push({type:'in',name:mName(mid)+' 繳款',location:loc,amount:amt,date,paidBy:mid,note,photo:photo||null,ref:key,balanceAfter:nb,createdAt:Date.now()});
-      closeM('mo-dep'); toast(mName(mid)+' 繳款 NT$'+fmt(amt),'success');
-    }catch(e){toast('操作失敗','error');}
+      D.balance = (D.balance || 0) + amt;
+      const key = 'dep_' + gid();
+      D.deposits[key] = { id: key, memberId: mid, amount: amt, date, location: loc, note, photo: photo || null, createdAt: Date.now() };
+      const txKey = 'tx_' + gid();
+      D.transactions[txKey] = { id: txKey, type: 'in', name: mName(mid) + ' 繳款', location: loc, amount: amt, date, paidBy: mid, note, photo: photo || null, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
+      closeM('mo-dep'); toast(mName(mid) + ' 繳款 NT$' + fmt(amt), 'success');
+      await saveData();
+    }catch(e){toast('操作失敗', 'error');}
   }
 }
 
@@ -1573,6 +1683,7 @@ function openFixed(eid){
   openM('mo-fixed');
 }
 async function submitFixed(){
+  if (!isAdmin()) return toast('權限不足：僅管理者可編輯固定支出', 'error');
   const name=document.getElementById('fix-name').value, loc=document.getElementById('fix-loc').value||'P2', amt=parseFloat(document.getElementById('fix-amt').value), rawDay=document.getElementById('fix-day').value, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
   if(!name)return toast('請選擇項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
@@ -1585,19 +1696,21 @@ async function submitFixed(){
   const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
   const data={name,category:name,location:loc,amount:amt,day,dayDate:rawDay||null,note,photo:photo||null};
   if(eid) {
-    await rRef.child('fixedItems/'+eid).update(data);
+    if (D.fixedItems[eid]) D.fixedItems[eid] = { ...D.fixedItems[eid], ...data };
     const relatedExecs = execs().filter(e => e.fixedId === eid);
     for (const ex of relatedExecs) {
-      await rRef.child('fixedExecutions/' + ex.id).update({ location: loc });
+      if (D.fixedExecutions[ex.id]) D.fixedExecutions[ex.id].location = loc;
       const tx = txs().find(t => t.ref === ex.id);
-      if (tx) {
-        await rRef.child('transactions/' + tx.id).update({ name: name + '（固定）', category: name, location: loc, amount: amt });
+      if (tx && D.transactions[tx.id]) {
+        D.transactions[tx.id] = { ...D.transactions[tx.id], name: name + '（固定）', category: name, location: loc, amount: amt };
       }
     }
   } else {
-    await rRef.child('fixedItems').push({...data,active:true,createdAt:Date.now()});
+    const id = 'fix_' + gid();
+    D.fixedItems[id] = { id, ...data, active: true, createdAt: Date.now() };
   }
   closeM('mo-fixed'); toast(eid?'已更新固定支出並同步帳目明細':'已新增固定支出','success');
+  await saveData();
 }
 
 // --- Exec ---
@@ -1629,6 +1742,7 @@ function openExec(fid, exId){
   openM('mo-exec');
 }
 async function submitExec(){
+  if (!isAdmin()) return toast('權限不足：僅管理者可執行扣款', 'error');
   const fid=document.getElementById('exec-fid').value, exId=document.getElementById('exec-eid').value, paid=document.getElementById('exec-paid').value||null, loc=document.getElementById('exec-loc').value||'P2', date=document.getElementById('exec-date').value, note=document.getElementById('exec-note').value.trim();
   const f=D.fixedItems[fid]; if(!f)return;
   if(!date)return toast('請選擇日期','error');
@@ -1636,22 +1750,28 @@ async function submitExec(){
 
   if (exId) {
     try {
-      await rRef.child('fixedExecutions/' + exId).update({ paidBy: paid, location: loc, date, note, photo: photo || null });
+      if (D.fixedExecutions[exId]) {
+        D.fixedExecutions[exId] = { ...D.fixedExecutions[exId], paidBy: paid, location: loc, date, note, photo: photo || null };
+      }
       const tx = txs().find(t => t.ref === exId);
-      if (tx) await rRef.child('transactions/' + tx.id).update({ name: f.name + '（固定）', category: f.name, amount: f.amount, date, location: loc, paidBy: paid, note, photo: photo || null });
+      if (tx && D.transactions[tx.id]) {
+        D.transactions[tx.id] = { ...D.transactions[tx.id], name: f.name + '（固定）', category: f.name, amount: f.amount, date, location: loc, paidBy: paid, note, photo: photo || null };
+      }
       closeM('mo-exec'); toast('已更新扣款紀錄與帳目明細', 'success');
+      await saveData();
     } catch (e) { toast('更新失敗：' + e.message, 'error'); }
   } else {
     const m=mon();
     if(execs().find(e=>e.fixedId===fid&&e.month===m&&e.done))return toast('本月已執行過','info');
     try{
-      const r=await rRef.child('balance').transaction(b=>(b||0)-f.amount);
-      const nb=r.snapshot.val();
-      const er=rRef.child('fixedExecutions').push();
-      await er.set({fixedId:fid,month:m,done:true,location:loc,date,paidBy:paid,note,photo:photo||null,createdAt:Date.now()});
-      await rRef.child('transactions').push({type:'out',name:f.name+'（固定）',category:f.name||'固定支出',location:loc,amount:f.amount,date,paidBy:paid,note,photo:photo||null,ref:er.key,balanceAfter:nb,createdAt:Date.now()});
-      closeM('mo-exec'); toast('已成功扣款 NT$'+fmt(f.amount)+(paid?'，繳款人：'+mName(paid):''),'success');
-    }catch(e){toast('扣款失敗：'+e.message,'error');}
+      D.balance = (D.balance || 0) - f.amount;
+      const key = 'ex_' + gid();
+      D.fixedExecutions[key] = { id: key, fixedId: fid, name: f.name, amount: f.amount, month: m, done: true, location: loc, date, paidBy: paid, note, photo: photo || null, createdAt: Date.now() };
+      const txKey = 'tx_' + gid();
+      D.transactions[txKey] = { id: txKey, type: 'out', name: f.name + '（固定）', category: f.name || '固定支出', location: loc, amount: f.amount, date, paidBy: paid, note, photo: photo || null, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
+      closeM('mo-exec'); toast('已成功扣款 NT$' + fmt(f.amount) + (paid ? '，繳款人：' + mName(paid) : ''), 'success');
+      await saveData();
+    }catch(e){toast('扣款失敗：' + e.message, 'error');}
   }
 }
 
@@ -1812,53 +1932,79 @@ function parseFirebaseConfig(raw) {
   throw new Error('Invalid format');
 }
 
-function step1(){
-  const raw=document.getElementById('s-config').value.trim();
-  if(!raw)return toast('請貼上 Firebase 設定','error');
-  let cfg;
-  try{
-    cfg = parseFirebaseConfig(raw);
-  }catch(e){return toast('格式錯誤：請確認貼上的 Firebase 設定包含 { ... }','error');}
-  if(!cfg || !cfg.apiKey)return toast('缺少 apiKey，請檢查貼上的設定','error');
-  if(!cfg.databaseURL)return toast('缺少 databaseURL（請先在 Firebase 建立 Realtime Database）','error');
-  _cfg=cfg; goStep(2);
+let _supabaseUrl = '';
+let _supabaseKey = '';
+let _room = '';
+
+function step1() {
+  const url = document.getElementById('s-supabase-url').value.trim();
+  const key = document.getElementById('s-supabase-key').value.trim();
+  if (!url || !url.startsWith('http')) return toast('請輸入有效的 Supabase URL', 'error');
+  if (!key || key.length < 20) return toast('請輸入有效的 Supabase Anon Key', 'error');
+  _supabaseUrl = url;
+  _supabaseKey = key;
+  goStep(2);
 }
 
-function step2(){
-  const code=document.getElementById('s-room').value.trim();
-  if(code.length<4)return toast('代碼至少 4 個字','error');
-  _room=code; goStep(3); loadSetupMembers();
+async function step2() {
+  const room = document.getElementById('s-room').value.trim();
+  if (!room || room.length < 4) return toast('房間代碼至少 4 個字元', 'error');
+  _room = room;
+
+  try {
+    if (!window.supabase) return toast('Supabase SDK 未成功載入', 'error');
+    const tmpClient = supabase.createClient(_supabaseUrl, _supabaseKey);
+    const { data, error } = await tmpClient.from('rooms').select('data').eq('room_code', _room).single();
+
+    let roomData = null;
+    if (error && error.code === 'PGRST116') {
+      const ms = {};
+      const m1 = gid(), m2 = gid();
+      ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
+      ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
+      roomData = {
+        balance: 0,
+        members: ms,
+        categories: DEF_CATS,
+        locations: DEF_LOCS,
+        transactions: {},
+        fixedItems: {},
+        fixedExecutions: {},
+        deposits: {},
+        settings: { alertDays: 3 }
+      };
+      await tmpClient.from('rooms').upsert({ room_code: _room, data: roomData, updated_at: new Date().toISOString() });
+    } else if (data && data.data) {
+      roomData = data.data;
+    } else if (error) {
+      return toast('連線失敗：' + error.message + '（請確認是否有在 Supabase 執行建表 SQL）', 'error');
+    }
+
+    D = roomData || D;
+    fillLoginSelect('s-mid-sel');
+    goStep(3);
+  } catch(e) {
+    toast('Supabase 驗證失敗：' + e.message, 'error');
+  }
 }
 
-function loadSetupMembers(){
-  const el=document.getElementById('s-member-list');
-  el.innerHTML=`<div style="text-align:center;color:var(--t3);font-size:13px;padding:18px">載入中...</div>`;
-  document.getElementById('s-new-form').style.display='none'; _selMem=null;
-  try{
-    if(!_tmpDb){if(!firebase.apps.length)firebase.initializeApp(_cfg);_tmpDb=firebase.database();}
-    _tmpDb.ref('rooms/'+_room+'/members').once('value',snap=>{
-      const ms=snap.val();
-      if(ms){
-        el.innerHTML=Object.entries(ms).map(([id,m])=>`<div class="member-opt" id="mo-${id}" onclick="selMem('${id}')" ><div style="width:34px;height:34px;border-radius:50%;background:${m.color||'#63b3ed'}22;color:${m.color||'#63b3ed'};display:flex;align-items:center;justify-content:center;font-weight:900">${(m.name||'?')[0]}</div><span style="font-size:14px;font-weight:700">${m.name}</span></div>`).join('')
-          +`<div class="member-opt member-opt-new" onclick="showNewMemForm()"><span>＋</span><span>我不在列表中</span></div>`;
-      } else {
-        el.innerHTML=`<div style="font-size:13px;color:var(--t2);margin-bottom:10px">這是全新房間！請輸入你的名字：</div>`;
-        document.getElementById('s-new-form').style.display='block';
-      }
-    });
-  }catch(e){el.innerHTML=`<div style="color:var(--red);font-size:13px">載入失敗：${e.message}</div>`;}
-}
+function step3() {
+  const mid = document.getElementById('s-mid-sel').value;
+  const pass = document.getElementById('s-pass-input').value;
+  const m = D.members[mid];
+  if (!m) return toast('請選擇成員', 'error');
+  if (m.password && pass !== m.password) {
+    return toast('密碼錯誤！請重新輸入', 'error');
+  }
 
-function selMem(id){_selMem=id;document.querySelectorAll('.member-opt').forEach(el=>el.classList.remove('selected'));const el=document.getElementById('mo-'+id);if(el)el.classList.add('selected');document.getElementById('s-new-form').style.display='none';}
-function showNewMemForm(){_selMem=null;document.querySelectorAll('.member-opt').forEach(el=>el.classList.remove('selected'));document.getElementById('s-new-form').style.display='block';}
-
-async function step3(){
-  const newName=document.getElementById('s-new-name')?.value?.trim();
-  if(!_selMem&&!newName)return toast('請選擇身份或輸入名字','error');
-  let mid=_selMem;
-  if(!mid&&newName){const nr=_tmpDb.ref('rooms/'+_room+'/members').push();mid=nr.key;await nr.set({name:newName,color:COLORS[0],createdAt:Date.now()});}
-  CFG={firebaseConfig:_cfg,roomCode:_room,currentMemberId:mid};
-  localStorage.setItem(LK,JSON.stringify(CFG));
+  CFG = {
+    supabaseUrl: _supabaseUrl,
+    supabaseKey: _supabaseKey,
+    roomCode: _room,
+    currentMemberId: mid,
+    role: m.role || 'user'
+  };
+  localStorage.setItem(LK, JSON.stringify(CFG));
   startApp();
 }
 
