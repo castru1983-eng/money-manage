@@ -606,7 +606,13 @@ textarea.fc{resize:vertical;min-height:90px;}
         <input type="hidden" id="txe-photo-val" value=""/>
       </div>
     </div>
-    <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-tx-edit')">取消</button><button class="btn btn-p" onclick="submitTxEdit()">儲存變更</button></div>
+    <div class="mf" style="justify-content:space-between">
+      <button type="button" class="btn btn-d btn-sm" onclick="delTx(document.getElementById('txe-id').value);closeM('mo-tx-edit')">🗑 刪除此紀錄</button>
+      <div class="flex g2i">
+        <button type="button" class="btn btn-sec" onclick="closeM('mo-tx-edit')">取消</button>
+        <button type="button" class="btn btn-p" onclick="submitTxEdit()">儲存變更</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -843,7 +849,7 @@ function renderDash() {
         return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
           <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.day?f.day+'號':'-'}扣款</div></div>
           <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
-          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button>`:
+          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>`:
           `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
         </div>`;
       }).join('');
@@ -881,14 +887,14 @@ function renderMembers() {
 }
 
 async function delDeposit(id) {
-  if(!confirm('確定刪除此繳款紀錄？'))return;
   const d=D.deposits[id]; if(!d)return;
+  if(!confirm(`確定刪除 ${mName(d.memberId)} 的繳款紀錄 NT$${fmt(d.amount)}？`))return;
   try{
-    await rRef.child('balance').transaction(b=>(b||0)-d.amount);
+    await rRef.child('balance').transaction(b=>Math.max(0,(b||0)-d.amount));
     await rRef.child('deposits/'+id).remove();
     const tx=txs().find(t=>t.ref===id);
     if(tx)await rRef.child('transactions/'+tx.id).remove();
-    toast('已刪除','info');
+    toast(`已刪除繳款紀錄，金額 NT$${fmt(d.amount)} 已從餘額扣除`,'info');
   }catch(e){toast('刪除失敗','error');}
 }
 
@@ -922,7 +928,7 @@ function renderFixed() {
           return `<div class="card" style="padding:15px">
             <div style="font-weight:800;margin-bottom:4px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div>
             <div style="font-size:21px;font-weight:900;color:var(--amber);margin-bottom:9px">NT$${fmt(f.amount)}</div>
-            ${done?`<div class="badge b-green">✓ 已扣款</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${ex.date}·${mName(ex.paidBy)}</div>`:
+            ${done?`<div class="badge b-green">✓ 已扣款</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${ex.date}·${mName(ex.paidBy)} <button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯" style="padding:1px 4px;font-size:10px">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額" style="padding:1px 4px;font-size:10px">🗑</button></div>`:
             `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
           </div>`;
         }).join('')
@@ -930,7 +936,21 @@ function renderFixed() {
 }
 
 function togFix(id) { const f=D.fixedItems[id]; if(f) rRef.child('fixedItems/'+id+'/active').set(!(f.active!==false)); }
-async function delFix(id) { if(!confirm('確定刪除？'))return; await rRef.child('fixedItems/'+id).remove(); toast('已刪除','info'); }
+async function delFix(id) { if(!confirm('確定刪除此固定支出設定？'))return; await rRef.child('fixedItems/'+id).remove(); toast('已刪除','info'); }
+
+async function delExec(exId) {
+  const ex = D.fixedExecutions[exId]; if (!ex) return;
+  const f = D.fixedItems[ex.fixedId];
+  const amt = f ? f.amount : 0;
+  if (!confirm(`確定取消並刪除此筆扣款紀錄？（金額 NT$${fmt(amt)} 將自動退回餘額）`)) return;
+  try {
+    await rRef.child('balance').transaction(b => (b || 0) + amt);
+    await rRef.child('fixedExecutions/' + exId).remove();
+    const tx = txs().find(t => t.ref === exId);
+    if (tx) await rRef.child('transactions/' + tx.id).remove();
+    toast(`已取消扣款，NT$${fmt(amt)} 已退回共用金餘額`, 'info');
+  } catch (e) { toast('刪除失敗：' + e.message, 'error'); }
+}
 
 // ═══════════════════════════════════════════════
 //  LEDGER
@@ -952,7 +972,7 @@ function renderLedger() {
         <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
-        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:6px"><span>NT$${fmt(t.balanceAfter)}</span><button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button></div></td>
+        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span><button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button></div></td>
       </tr>`).join('');
   const ti=list.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
   const to=list.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
@@ -960,6 +980,27 @@ function renderLedger() {
     <span style="color:var(--green);font-weight:800;font-size:13px">收入：NT$${fmt(ti)}</span>
     <span style="color:var(--red);font-weight:800;font-size:13px">支出：NT$${fmt(to)}</span>
     <span style="color:var(--t2);font-size:13px">淨額：<span style="color:${ti-to>=0?'var(--green)':'var(--red)'};font-weight:900">NT$${fmt(ti-to)}</span></span>`;
+}
+
+async function delTx(txId) {
+  const t = D.transactions[txId]; if (!t) return;
+  if (!confirm(`確定刪除「${t.name}」NT$${fmt(t.amount)} 這筆紀錄？\n系統將自動調整共用金餘額！`)) return;
+  try {
+    const isInc = t.type === 'in';
+    const balChange = isInc ? -t.amount : t.amount;
+    const r = await rRef.child('balance').transaction(b => {
+      const nb = (b || 0) + balChange;
+      if (nb < 0 && balChange < 0) return;
+      return nb;
+    });
+    if (!r.committed) return toast('餘額不足，無法刪除此筆收入紀錄！', 'error');
+    await rRef.child('transactions/' + txId).remove();
+    if (t.ref) {
+      if (D.deposits[t.ref]) await rRef.child('deposits/' + t.ref).remove();
+      if (D.fixedExecutions[t.ref]) await rRef.child('fixedExecutions/' + t.ref).remove();
+    }
+    toast(`已刪除紀錄，金額 NT$${fmt(t.amount)} 已${isInc ? '從餘額扣除' : '自動退回共用金餘額'}`, 'info');
+  } catch (e) { toast('刪除失敗：' + e.message, 'error'); }
 }
 
 // ═══════════════════════════════════════════════
