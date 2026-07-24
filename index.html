@@ -339,13 +339,18 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     <div class="sb-logo-icon">💰</div>
     <div class="sb-logo-text">共用金管理</div>
   </div>
-  <div class="user-chip" onclick="openIdentity()" title="切換身份與帳號">
-    <div class="udot"></div>
-    <div style="flex:1;overflow:hidden">
-      <div class="uname" id="sb-name">-</div>
-      <div style="font-size:10px;color:var(--t3)" id="sb-role-badge">管理者</div>
+  <div class="user-chip" style="flex-direction:column;align-items:stretch;gap:8px">
+    <div style="display:flex;align-items:center;gap:8px;cursor:pointer" onclick="openIdentity()" title="點擊切換身份與帳號">
+      <div class="udot"></div>
+      <div style="flex:1;overflow:hidden">
+        <div class="uname" id="sb-name">-</div>
+        <div style="font-size:10px;color:var(--t3)" id="sb-role-badge">管理者</div>
+      </div>
+      <div class="uedit">🔑切換</div>
     </div>
-    <div class="uedit">🔑切換</div>
+    <button type="button" class="btn btn-d btn-sm" onclick="logoutSystem()" style="width:100%;padding:5px 0;font-size:11px;display:flex;align-items:center;justify-content:center;gap:4px">
+      🚪 登出系統
+    </button>
   </div>
   <div class="nav-label">主選單</div>
   <div class="nav-item active" id="nav-dashboard" onclick="go('dashboard')"><span class="ni">📊</span>總覽</div>
@@ -465,8 +470,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       </div>
       <div class="card">
         <div class="ct">連線資訊</div>
-        <div class="srow"><div><div class="srow-label">房間代碼</div><div class="srow-sub" id="info-room"></div></div></div>
-        <div class="srow"><div><div class="srow-label">目前身份</div><div class="srow-sub" id="info-me"></div></div><button class="btn btn-sec btn-sm" onclick="openIdentity()">切換</button></div>
+        <div class="srow"><div><div class="srow-label">目前登入帳號</div><div class="srow-sub" id="info-me"></div></div><div class="flex g2i"><button class="btn btn-sec btn-sm" onclick="openIdentity()">切換</button><button class="btn btn-d btn-sm" onclick="logoutSystem()">🚪 登出</button></div></div>
         <div class="srow"><div><div class="srow-label">重設連線</div><div class="srow-sub">清除本裝置設定（資料不影響）</div></div><button class="btn btn-d btn-sm" onclick="resetConn()">重設</button></div>
       </div>
     </div>
@@ -1971,6 +1975,25 @@ function openIdentity(){
   const elPass = document.getElementById('login-pass-input');
   if (elPass) elPass.value = '';
   openM('mo-id');
+}
+
+function logoutSystem() {
+  if (!confirm('確定要登出系統？登出後需重新輸入帳號密碼。')) return;
+  if (CFG) {
+    CFG.currentMemberId = null;
+    CFG.role = null;
+    localStorage.setItem(LK, JSON.stringify(CFG));
+  }
+
+  toast('已成功登出系統！', 'info');
+
+  fillLoginSelect('s-mid-sel');
+  const elPass = document.getElementById('s-pass-input');
+  if (elPass) elPass.value = '';
+
+  document.getElementById('app-screen').style.display = 'none';
+  document.getElementById('setup-screen').style.display = 'flex';
+  goStep(3);
 }
 
 // ═══════════════════════════════════════════════
