@@ -535,7 +535,7 @@ textarea.fc{resize:vertical;min-height:90px;}
 
 <div class="mo" id="mo-exec">
   <div class="md">
-    <div class="mh"><div class="mt" id="exec-title">執行固定扣款</div><button class="mc" onclick="closeM('mo-exec')">✕</button></div>
+    <div class="mh"><div class="mt" id="exec-title">💳 確認繳款</div><button class="mc" onclick="closeM('mo-exec')">✕</button></div>
     <input type="hidden" id="exec-fid"/>
     <input type="hidden" id="exec-eid"/>
     <div style="background:var(--glass);border:1px solid var(--border);border-radius:var(--rsm);padding:14px;margin-bottom:16px" id="exec-info"></div>
@@ -543,7 +543,10 @@ textarea.fc{resize:vertical;min-height:90px;}
       <div class="fg"><label class="fl">繳款人（誰去繳的）</label><select class="fc" id="exec-paid"><option value="">不指定</option></select></div>
       <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="exec-loc"></select></div>
     </div>
-    <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="exec-note" placeholder="選填..."/></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">扣款日期</label><input type="date" class="fc" id="exec-date"/></div>
+      <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="exec-note" placeholder="選填..."/></div>
+    </div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 繳費單據 (選填)</label>
       <div class="photo-upload-box">
@@ -556,7 +559,7 @@ textarea.fc{resize:vertical;min-height:90px;}
         <input type="hidden" id="exec-photo-val" value=""/>
       </div>
     </div>
-    <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-exec')">取消</button><button class="btn btn-p" onclick="submitExec()">確認扣款</button></div>
+    <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-exec')">取消</button><button class="btn btn-p" onclick="submitExec()">確認繳款 (立即扣款)</button></div>
   </div>
 </div>
 
@@ -727,7 +730,6 @@ const txs = () => {
 const deps = () => Object.entries(D.deposits).map(([id,d])=>({id,...d}));
 const fixes = () => Object.entries(D.fixedItems).map(([id,f])=>({id,...f}));
 const execs = () => Object.entries(D.fixedExecutions).map(([id,e])=>({id,...e}));
-const petties = () => Object.entries(D.pettyItems||{}).map(([id,p])=>({id,...p}));
 const mName = id => id && D.members[id] ? D.members[id].name : '-';
 const mColor = id => D.members[id] ? D.members[id].color : '#63b3ed';
 const catIcon = c => ICONS[c]||'📌';
@@ -928,7 +930,7 @@ function renderDash() {
           <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.day?f.day+'號':'-'}扣款</div></div>
           <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
           ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>`:
-          `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
+          `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`}
         </div>`;
       }).join('');
 }
@@ -981,39 +983,33 @@ async function delDeposit(id) {
 // ═══════════════════════════════════════════════
 function renderFixed() {
   const fs=fixes();
+  const m=mon();
   document.getElementById('fix-tbody').innerHTML = fs.length===0
     ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
-    : fs.map(f=>`<tr>
-        <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
-        <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
-        <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
-        <td style="color:var(--t2)">${f.day?f.day+'號':'-'}</td>
-        <td><span class="badge ${f.active!==false?'b-green':'b-gray'}">${f.active!==false?'啟用':'停用'}</span></td>
-        <td><div class="flex g2i">
-          <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯/補傳照片">✏️</button>
-          <button class="btn btn-sec btn-icon btn-sm" onclick="togFix('${f.id}')">${f.active!==false?'⏸':'▶️'}</button>
-          <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')">🗑</button>
-        </div></td>
-      </tr>`).join('');
-
-  const m=mon(), af=fs.filter(f=>f.active!==false);
-  const elExec = document.getElementById('fix-exec');
-  if (elExec) {
-    elExec.innerHTML = af.length===0
-      ? `<div class="empty" style="padding:20px"><p>無啟用中的固定支出</p></div>`
-      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:13px">${
-          af.map(f=>{
-            const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
-            const done=ex&&ex.done;
-            return `<div class="card" style="padding:15px">
-              <div style="font-weight:800;margin-bottom:4px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div>
-              <div style="font-size:21px;font-weight:900;color:var(--amber);margin-bottom:9px">NT$${fmt(f.amount)}</div>
-              ${done?`<div class="badge b-green">✓ 已扣款</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${ex.date}·${mName(ex.paidBy)} <button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯" style="padding:1px 4px;font-size:10px">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額" style="padding:1px 4px;font-size:10px">🗑</button></div>`:
-              `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
-            </div>`;
-          }).join('')
-        }</div>`;
-  }
+    : fs.map(f=>{
+        const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
+        const done=ex&&ex.done;
+        let statusHtml = '';
+        if (f.active === false) {
+          statusHtml = `<span class="badge b-gray">已停用</span>`;
+        } else if (done) {
+          statusHtml = `<span class="badge b-green">✓ 本月已繳款 (${ex.date})</span>`;
+        } else {
+          statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+        }
+        return `<tr>
+          <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
+          <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
+          <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
+          <td style="color:var(--t2)">${f.day?f.day+'號':'-'}</td>
+          <td>${statusHtml}</td>
+          <td><div class="flex g2i">
+            <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯/補傳照片">✏️</button>
+            <button class="btn btn-sec btn-icon btn-sm" onclick="togFix('${f.id}')">${f.active!==false?'⏸':'▶️'}</button>
+            <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')">🗑</button>
+          </div></td>
+        </tr>`;
+      }).join('');
 }
 
 function togFix(id) { const f=D.fixedItems[id]; if(f) rRef.child('fixedItems/'+id+'/active').set(!(f.active!==false)); }
