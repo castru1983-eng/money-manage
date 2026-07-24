@@ -1386,6 +1386,74 @@ async function delTx(txId) {
   } catch (e) { toast('刪除失敗：' + e.message, 'error'); }
 }
 
+async function delFix(id) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除固定支出', 'error');
+  const f = D.fixedItems[id];
+  if (!f) return toast('找不到該固定支出項目', 'error');
+  if (!confirm(`確定要刪除固定支出「${f.name}」？\n刪除將自動連帶刪除歷來扣款紀錄，並將金額退回共用金！`)) return;
+
+  try {
+    const relatedExecs = execs().filter(e => e.fixedId === id);
+    let totalRefund = 0;
+
+    for (const ex of relatedExecs) {
+      if (ex.done) {
+        const amt = typeof ex.amount === 'number' ? ex.amount : (f.amount || 0);
+        totalRefund += amt;
+      }
+      delete D.fixedExecutions[ex.id];
+      const tx = txs().find(t => t.ref === ex.id);
+      if (tx) delete D.transactions[tx.id];
+    }
+
+    if (totalRefund > 0) D.balance = (D.balance || 0) + totalRefund;
+    delete D.fixedItems[id];
+    toast(`已刪除「${f.name}」，明細紀錄已連帶清除${totalRefund > 0 ? `（金額已退回 NT$${fmt(totalRefund)}）` : ''}`, 'info');
+    await saveData();
+  } catch (e) {
+    toast('刪除失敗：' + e.message, 'error');
+  }
+}
+
+async function delExec(exId) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除扣款紀錄', 'error');
+  const ex = D.fixedExecutions[exId];
+  if (!ex) return toast('找不到該筆扣款紀錄', 'error');
+  const f = D.fixedItems[ex.fixedId];
+  const amt = typeof ex.amount === 'number' ? ex.amount : (f ? f.amount : 0);
+  if (!confirm(`確定要取消並刪除此筆扣款紀錄？\n已扣金額 NT$${fmt(amt)} 將自動退回共用金餘額！`)) return;
+
+  try {
+    D.balance = (D.balance || 0) + amt;
+    delete D.fixedExecutions[exId];
+    const tx = txs().find(t => t.ref === exId);
+    if (tx) delete D.transactions[tx.id];
+    toast(`已取消扣款，NT$${fmt(amt)} 已退回共用金餘額，帳目明細已同步刪除`, 'info');
+    await saveData();
+  } catch (e) {
+    toast('刪除失敗：' + e.message, 'error');
+  }
+}
+
+async function delDeposit(did) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除繳款紀錄', 'error');
+  const d = D.deposits[did];
+  if (!d) return toast('找不到該筆繳款紀錄', 'error');
+  if (!confirm(`確定要刪除「${mName(d.memberId)}」繳款 NT$${fmt(d.amount)} 的紀錄？\n系統將自動從共用金扣除該金額！`)) return;
+
+  try {
+    if ((D.balance || 0) - d.amount < 0) return toast('餘額不足，無法刪除此筆繳款紀錄！', 'error');
+    D.balance = (D.balance || 0) - d.amount;
+    delete D.deposits[did];
+    const tx = txs().find(t => t.ref === did);
+    if (tx) delete D.transactions[tx.id];
+    toast(`已刪除繳款紀錄，金額 NT$${fmt(d.amount)} 已從餘額扣除`, 'info');
+    await saveData();
+  } catch (e) {
+    toast('刪除失敗：' + e.message, 'error');
+  }
+}
+
 // ═══════════════════════════════════════════════
 //  REPORT
 // ═══════════════════════════════════════════════
