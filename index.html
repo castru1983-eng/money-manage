@@ -359,13 +359,16 @@ textarea.fc{resize:vertical;min-height:90px;}
 <div class="page" id="page-fixed">
   <div class="ph">
     <div><div class="ph-title">📋 固定支出管理</div><div class="ph-sub">每月固定扣款項目</div></div>
-    <button class="btn btn-p" onclick="openFixed()">＋ 新增固定項目</button>
+    <div class="flex g2i">
+      <button class="btn btn-sec" onclick="execAllPendingFixed()" title="一鍵執行所有待扣款的固定支出">⚡ 執行本月全部扣款</button>
+      <button class="btn btn-p" onclick="openFixed()">＋ 新增固定項目</button>
+    </div>
   </div>
   <div class="card mb6">
     <div class="ct">固定支出清單</div>
     <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
   </div>
-  <div class="card"><div class="ct">本月執行狀況</div><div id="fix-exec"></div></div>
+  <div class="card"><div class="ct">本月執行狀況 <span style="font-size:12px;font-weight:400;color:var(--t3);margin-left:8px">（💡 點擊「立即扣款」或「⚡ 執行本月全部扣款」即可扣除金額並自動記入帳目明細）</span></div><div id="fix-exec"></div></div>
 </div>
 
 <!-- LEDGER -->
@@ -1017,7 +1020,7 @@ async function delFix(id) { if(!confirm('確定刪除此固定支出設定？'))
 async function delExec(exId) {
   const ex = D.fixedExecutions[exId]; if (!ex) return;
   const f = D.fixedItems[ex.fixedId];
-  const amt = f ? f.amount : 0;
+  const amt = typeof ex.amount==='number'?ex.amount:(f ? f.amount : 0);
   if (!confirm(`確定取消並刪除此筆扣款紀錄？（金額 NT$${fmt(amt)} 將自動退回餘額）`)) return;
   try {
     await rRef.child('balance').transaction(b => (b || 0) + amt);
@@ -1026,6 +1029,43 @@ async function delExec(exId) {
     if (tx) await rRef.child('transactions/' + tx.id).remove();
     toast(`已取消扣款，NT$${fmt(amt)} 已退回共用金餘額`, 'info');
   } catch (e) { toast('刪除失敗：' + e.message, 'error'); }
+}
+
+async function execAllPendingFixed() {
+  const fs = fixes().filter(f => f.active !== false);
+  const m = mon();
+  const pending = fs.filter(f => !execs().find(e => e.fixedId === f.id && e.month === m && e.done));
+  if (pending.length === 0) return toast('本月所有固定支出已完成扣款！', 'info');
+
+  const total = pending.reduce((s, f) => s + f.amount, 0);
+  if (!confirm(`確定要執行本月待扣款項目（共 ${pending.length} 筆，總計 NT$${fmt(total)}）？\n扣款後將自動寫入帳目明細！`)) return;
+
+  try {
+    for (const f of pending) {
+      const r = await rRef.child('balance').transaction(b => (b || 0) - f.amount);
+      const nb = r.snapshot.val();
+      const er = rRef.child('fixedExecutions').push();
+      const exData = { fixedId: f.id, name: f.name, amount: f.amount, month: m, done: true, location: f.location || 'P2', date: tod(), paidBy: CFG.currentMemberId || null, note: '一鍵扣款', photo: null, createdAt: Date.now() };
+      await er.set(exData);
+      await rRef.child('transactions').push({
+        type: 'out',
+        name: f.name + '（固定）',
+        category: f.name || '固定支出',
+        location: f.location || 'P2',
+        amount: f.amount,
+        date: tod(),
+        paidBy: CFG.currentMemberId || null,
+        note: '一鍵扣款',
+        photo: null,
+        ref: er.key,
+        balanceAfter: nb,
+        createdAt: Date.now()
+      });
+    }
+    toast(`已完成 ${pending.length} 筆固定扣款，總計 NT$${fmt(total)} 已寫入帳目明細！`, 'success');
+  } catch(e) {
+    toast('執行失敗：' + e.message, 'error');
+  }
 }
 
 // ═══════════════════════════════════════════════
