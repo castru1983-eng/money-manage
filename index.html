@@ -303,17 +303,20 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   </div>
 
   <div class="setup-step" id="ss3">
-    <div class="setup-title">選擇你的身份</div>
-    <div class="setup-sub">選擇你是哪位成員：</div>
-    <div id="s-member-list" style="margin-bottom:14px">
-      <div style="text-align:center;color:var(--t3);font-size:13px;padding:18px">載入中...</div>
+    <div class="setup-title">帳號與密碼登入</div>
+    <div class="setup-sub">請選擇成員並輸入密碼登入：</div>
+    <div class="fg">
+      <label class="fl">選擇成員</label>
+      <select class="fc" id="s-mid-sel" onchange="onLoginSelChange(this.value,'s-role-preview')"></select>
     </div>
-    <div id="s-new-form" style="display:none">
-      <div class="fg"><label class="fl">你的名字</label><input type="text" class="fc" id="s-new-name" placeholder="輸入名字..."/></div>
+    <div style="margin-bottom:14px" id="s-role-preview"></div>
+    <div class="fg">
+      <label class="fl">輸入密碼</label>
+      <input type="password" class="fc" id="s-pass-input" placeholder="預設管理者密碼：admin888 / 一般使用者：user123"/>
     </div>
     <div class="flex g2i">
       <button class="btn btn-sec" style="flex:1" onclick="goStep(2)">← 返回</button>
-      <button class="btn btn-p" style="flex:2" onclick="step3()">完成設定 ✓</button>
+      <button class="btn btn-p" style="flex:2" onclick="step3()">🔑 登入進入系統 ✓</button>
     </div>
   </div>
 </div>
@@ -326,10 +329,13 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     <div class="sb-logo-icon">💰</div>
     <div class="sb-logo-text">共用金管理</div>
   </div>
-  <div class="user-chip" onclick="openIdentity()" title="切換身份">
+  <div class="user-chip" onclick="openIdentity()" title="切換身份與帳號">
     <div class="udot"></div>
-    <div class="uname" id="sb-name">-</div>
-    <div class="uedit">切換↕</div>
+    <div style="flex:1;overflow:hidden">
+      <div class="uname" id="sb-name">-</div>
+      <div style="font-size:10px;color:var(--t3)" id="sb-role-badge">管理者</div>
+    </div>
+    <div class="uedit">🔑切換</div>
   </div>
   <div class="nav-label">主選單</div>
   <div class="nav-item active" id="nav-dashboard" onclick="go('dashboard')"><span class="ni">📊</span>總覽</div>
@@ -351,7 +357,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   <div class="ph">
     <div><div class="ph-title">📊 財務總覽</div><div class="ph-sub" id="dash-date"></div></div>
     <div>
-      <button class="btn btn-s" onclick="openFunds()">💰 注入資金</button>
+      <button class="btn btn-s" id="btn-funds" onclick="openFunds()">💰 注入資金</button>
     </div>
   </div>
   <div class="hero">
@@ -393,8 +399,8 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   <div class="ph">
     <div><div class="ph-title">📋 固定支出管理</div><div class="ph-sub">每月固定扣款項目</div></div>
     <div class="flex g2i">
-      <button class="btn btn-sec" onclick="execAllPendingFixed()" title="一鍵執行所有待扣款的固定支出">⚡ 執行本月全部扣款</button>
-      <button class="btn btn-p" onclick="openFixed()">＋ 新增固定項目</button>
+      <button class="btn btn-sec" id="btn-exec-all" onclick="execAllPendingFixed()" title="一鍵執行所有待扣款的固定支出">⚡ 執行本月全部扣款</button>
+      <button class="btn btn-p" id="btn-add-fix" onclick="openFixed()">＋ 新增固定項目</button>
     </div>
   </div>
   <div class="card">
@@ -443,9 +449,9 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   <div class="g2">
     <div>
       <div class="card mb4">
-        <div class="ct">成員管理</div>
+        <div class="ct">成員與權限管理 (帳號 / 密碼 / 權限)</div>
         <div id="set-members"></div>
-        <div class="mt4"><button class="btn btn-sec btn-sm" onclick="addMember()">＋ 新增成員</button></div>
+        <div class="mt4" id="set-add-mem-wrap"><button class="btn btn-sec btn-sm" onclick="addMember()">＋ 新增成員帳號</button></div>
       </div>
       <div class="card">
         <div class="ct">連線資訊</div>
@@ -614,10 +620,21 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 </div>
 
 <div class="mo" id="mo-id">
-  <div class="md" style="width:360px">
-    <div class="mh"><div class="mt">切換身份</div><button class="mc" onclick="closeM('mo-id')">✕</button></div>
-    <div id="id-list" style="margin-bottom:14px"></div>
-    <div class="mf"><button class="btn btn-sec" onclick="closeM('mo-id')">取消</button></div>
+  <div class="md" style="width:420px">
+    <div class="mh"><div class="mt">🔑 成員登入與身份切換</div><button class="mc" onclick="closeM('mo-id')">✕</button></div>
+    <div class="fg">
+      <label class="fl">選擇登入成員</label>
+      <select class="fc" id="login-mid-sel" onchange="onLoginSelChange(this.value,'login-role-preview')"></select>
+    </div>
+    <div style="margin-bottom:14px" id="login-role-preview"></div>
+    <div class="fg">
+      <label class="fl">輸入密碼</label>
+      <input type="password" class="fc" id="login-pass-input" placeholder="請輸入密碼..."/>
+    </div>
+    <div class="mf">
+      <button class="btn btn-sec" onclick="closeM('mo-id')">取消</button>
+      <button class="btn btn-p" onclick="submitLoginModal()">🔑 登入系統</button>
+    </div>
   </div>
 </div>
 
@@ -701,6 +718,12 @@ const tod = () => new Date().toISOString().slice(0,10);
 const mon = () => new Date().toISOString().slice(0,7);
 const fmt = n => (n||0).toLocaleString();
 const mems = () => Object.entries(D.members).map(([id,m])=>({id,...m}));
+function isAdmin() {
+  if (!CFG || !CFG.currentMemberId) return true;
+  const m = D.members[CFG.currentMemberId];
+  if (!m) return true;
+  return m.role === 'admin' || !m.role;
+}
 const txs = () => {
   const list = Object.entries(D.transactions).map(([id, t]) => {
     let item = { id, ...t };
@@ -910,8 +933,24 @@ function listen() {
     D.fixedExecutions = v.fixedExecutions||{};
     D.deposits = v.deposits||{};
     D.settings = v.settings||{};
+
+    // Auto-migration for member account & role credentials if missing
+    let needUpdate = false;
+    Object.keys(D.members).forEach((id, idx) => {
+      const m = D.members[id];
+      if (!m.username) { m.username = idx === 0 ? 'admin' : (idx === 1 ? 'user' : 'user' + (idx + 1)); needUpdate = true; }
+      if (!m.password) { m.password = idx === 0 ? 'admin888' : 'user123'; needUpdate = true; }
+      if (!m.role) { m.role = idx === 0 ? 'admin' : 'user'; needUpdate = true; }
+    });
+    if (needUpdate) {
+      rRef.child('members').set(D.members);
+    }
+
     const me = CFG && D.members[CFG.currentMemberId];
-    document.getElementById('sb-name').textContent = me ? me.name : '未設定';
+    const isAdm = isAdmin();
+    document.getElementById('sb-name').textContent = me ? me.name : '未登入';
+    const elBadge = document.getElementById('sb-role-badge');
+    if (elBadge) elBadge.textContent = me ? (isAdm ? '👑 管理者' : '👤 一般使用者') : '';
     updateNavBadges();
     renderPage(curPage);
   });
@@ -919,7 +958,9 @@ function listen() {
 
 async function initRoom() {
   const ms = {};
-  ['成員 A','成員 B','成員 C'].forEach((n,i)=>{ const id=gid(); ms[id]={name:n,color:COLORS[i],createdAt:Date.now()}; });
+  const m1 = gid(), m2 = gid();
+  ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
+  ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
   await rRef.set({balance:0,members:ms,categories:DEF_CATS,locations:DEF_LOCS,transactions:{},fixedItems:{},fixedExecutions:{},deposits:{}});
 }
 
@@ -942,6 +983,10 @@ function renderPage(page) {
 //  DASHBOARD
 // ═══════════════════════════════════════════════
 function renderDash() {
+  const isAdm = isAdmin();
+  const elBtnFunds = document.getElementById('btn-funds');
+  if (elBtnFunds) elBtnFunds.style.display = isAdm ? 'inline-flex' : 'none';
+
   document.getElementById('dash-date').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
   const m = mon();
   const mt = txs().filter(t=>t.date.startsWith(m));
@@ -965,7 +1010,7 @@ function renderDash() {
         <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
         <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
         ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
-        <button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>
+        ${isAdm ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>` : ''}
         <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
       </div>`).join('');
 
@@ -980,10 +1025,10 @@ function renderDash() {
         const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
         const done=ex&&ex.done;
         return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.day?f.day+'號前截止':'-'}</div></div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.dayDate?f.dayDate+'截止':(f.day?f.day+'號前截止':'-')}</div></div>
           <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
-          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>`:
-          `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`}
+          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`:
+          (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`)}
         </div>`;
       }).join('');
 }
@@ -1079,6 +1124,12 @@ function updateNavBadges() {
 
 function renderFixed() {
   updateNavBadges();
+  const isAdm = isAdmin();
+  const elExecAll = document.getElementById('btn-exec-all');
+  if (elExecAll) elExecAll.style.display = isAdm ? 'inline-flex' : 'none';
+  const elAddFix = document.getElementById('btn-add-fix');
+  if (elAddFix) elAddFix.style.display = isAdm ? 'inline-flex' : 'none';
+
   const fs=fixes();
   const m=mon();
   const alertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
@@ -1093,24 +1144,28 @@ function renderFixed() {
         if (done) {
           statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date})</span>`;
         } else {
-          let diffDays = 999;
-          if (f.dayDate && f.dayDate.includes('-')) {
-            const parts = f.dayDate.split('-');
-            const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-            targetDate.setHours(0,0,0,0);
-            diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
-          } else if (f.day) {
-            const targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
-            targetDate.setHours(0,0,0,0);
-            diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
-          }
-
-          if (diffDays < 0) {
-            statusHtml = `<button class="btn btn-d btn-sm" onclick="openExec('${f.id}')" title="已超過繳款期限">🚨 已逾期 (${Math.abs(diffDays)}天)</button>`;
-          } else if (diffDays <= alertDays) {
-            statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}')">⚠️ 剩 ${diffDays === 0 ? '今天' : diffDays + ' 天'}到期</button>`;
+          if (!isAdm) {
+            statusHtml = `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`;
           } else {
-            statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+            let diffDays = 999;
+            if (f.dayDate && f.dayDate.includes('-')) {
+              const parts = f.dayDate.split('-');
+              const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+              targetDate.setHours(0,0,0,0);
+              diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+            } else if (f.day) {
+              const targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
+              targetDate.setHours(0,0,0,0);
+              diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+            }
+
+            if (diffDays < 0) {
+              statusHtml = `<button class="btn btn-d btn-sm" onclick="openExec('${f.id}')" title="已超過繳款期限">🚨 已逾期 (${Math.abs(diffDays)}天)</button>`;
+            } else if (diffDays <= alertDays) {
+              statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}')">⚠️ 剩 ${diffDays === 0 ? '今天' : diffDays + ' 天'}到期</button>`;
+            } else {
+              statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+            }
           }
         }
         return `<tr>
@@ -1119,10 +1174,10 @@ function renderFixed() {
           <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
           <td style="color:var(--t2)">${f.dayDate ? f.dayDate + ' 截止' : (f.day ? '每月 ' + f.day + ' 號前' : '-')}</td>
           <td>${statusHtml}</td>
-          <td><div class="flex g2i">
+          <td>${isAdm ? `<div class="flex g2i">
             <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯項目">✏️</button>
             <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')" title="刪除項目">🗑</button>
-          </div></td>
+          </div>` : '<span style="color:var(--t3);font-size:12px">僅供檢視</span>'}</td>
         </tr>`;
       }).join('');
 }
@@ -1242,7 +1297,7 @@ function renderLedger() {
         <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
-        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span><button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button></div></td>
+        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span>${isAdmin() ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button>` : ''}</div></td>
       </tr>`).join('');
   const ti=list.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
   const to=list.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
@@ -1314,39 +1369,83 @@ function renderReport() {
 //  SETTINGS
 // ═══════════════════════════════════════════════
 function renderSettings() {
-  document.getElementById('set-members').innerHTML=mems().map(m=>`
-    <div class="srow">
-      <div class="flex ic g2i">
-        <div style="width:28px;height:28px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px">${(m.name||'?')[0]}</div>
-        <input class="inline-edit" value="${m.name}" onchange="renMem('${m.id}',this.value)"/>
+  const isAdm = isAdmin();
+  const elAddMem = document.getElementById('set-add-mem-wrap');
+  if (elAddMem) elAddMem.style.display = isAdm ? 'block' : 'none';
+
+  document.getElementById('set-members').innerHTML = mems().map(m => `
+    <div class="card" style="padding:14px;margin-bottom:10px;background:rgba(255,255,255,.02)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div class="flex ic g2i">
+          <div style="width:28px;height:28px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px">${(m.name||'?')[0]}</div>
+          <input class="inline-edit" value="${m.name}" ${isAdm ? `onchange="renMem('${m.id}',this.value)"` : 'disabled'} style="font-weight:800"/>
+        </div>
+        <div class="flex ic g2i">
+          <input type="color" value="${m.color}" ${isAdm ? `onchange="chColor('${m.id}',this.value)"` : 'disabled'} style="width:24px;height:24px;border:none;background:none;cursor:pointer;border-radius:50%;padding:0"/>
+          ${isAdm && mems().length > 1 ? `<button class="btn btn-d btn-icon btn-sm" onclick="delMem('${m.id}')">🗑</button>` : ''}
+        </div>
       </div>
-      <div class="flex ic g2i">
-        <input type="color" value="${m.color}" onchange="chColor('${m.id}',this.value)" style="width:24px;height:24px;border:none;background:none;cursor:pointer;border-radius:50%;padding:0"/>
-        ${mems().length>1?`<button class="btn btn-d btn-icon btn-sm" onclick="delMem('${m.id}')">🗑</button>`:''}
+      <div class="fr" style="gap:8px">
+        <div>
+          <label class="fl" style="font-size:10px">帳號</label>
+          <input type="text" class="fc" value="${m.username||''}" ${isAdm ? `onchange="chUser('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+        </div>
+        <div>
+          <label class="fl" style="font-size:10px">密碼</label>
+          <input type="text" class="fc" value="${m.password||''}" ${isAdm ? `onchange="chPass('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <label class="fl" style="font-size:10px">權限角色</label>
+        <select class="fc" ${isAdm ? `onchange="chRole('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px">
+          <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>👑 管理者 (可完整編輯、扣款與管理)</option>
+          <option value="user" ${m.role === 'user' ? 'selected' : ''}>👤 一般使用者 (僅供檢視)</option>
+        </select>
       </div>
     </div>`).join('');
-  document.getElementById('set-cats').innerHTML=D.categories.map((c,i)=>`
+
+  document.getElementById('set-cats').innerHTML = D.categories.map((c, i) => `
     <div class="srow">
       <span style="font-size:13px">${catIcon(c)} ${c}</span>
-      <button class="btn btn-d btn-icon btn-sm" onclick="delCat(${i})">🗑</button>
+      ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delCat(${i})">🗑</button>` : ''}
     </div>`).join('');
-  document.getElementById('set-locs').innerHTML=(D.locations||DEF_LOCS).map((loc,i)=>`
+
+  document.getElementById('set-locs').innerHTML = (D.locations || DEF_LOCS).map((loc, i) => `
     <div class="srow">
       <span style="font-size:13px">📍 ${loc}</span>
-      <button class="btn btn-d btn-icon btn-sm" onclick="delLoc(${i})">🗑</button>
+      ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delLoc(${i})">🗑</button>` : ''}
     </div>`).join('');
-  document.getElementById('info-room').textContent=CFG.roomCode;
-  document.getElementById('info-me').textContent=mName(CFG.currentMemberId);
+
+  document.getElementById('info-room').textContent = CFG.roomCode;
+  document.getElementById('info-me').textContent = mName(CFG.currentMemberId) + (isAdm ? ' (👑 管理者)' : ' (👤 一般使用者)');
   const curAlertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
   const elDays = document.getElementById('set-alert-days');
-  if (elDays) elDays.value = curAlertDays;
+  if (elDays) {
+    elDays.value = curAlertDays;
+    elDays.disabled = !isAdm;
+  }
 }
 
 async function setAlertDays(val) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可設定提醒天數', 'error');
   const days = parseInt(val, 10) || 3;
   await rRef.child('settings/alertDays').set(days);
   toast(`已設定固定支出到期提醒為 ${days} 天前`, 'success');
   updateNavBadges();
+}
+
+function chUser(id, username) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可修改帳號', 'error');
+  if (username.trim()) rRef.child('members/' + id + '/username').set(username.trim());
+}
+function chPass(id, password) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可修改密碼', 'error');
+  if (password.trim()) rRef.child('members/' + id + '/password').set(password.trim());
+}
+function chRole(id, role) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可修改權限', 'error');
+  rRef.child('members/' + id + '/role').set(role);
+  toast(`已將成員權限更新為 ${role === 'admin' ? '👑 管理者' : '👤 一般使用者'}`, 'success');
 }
 
 function renMem(id,n){if(n.trim())rRef.child('members/'+id+'/name').set(n.trim());}
