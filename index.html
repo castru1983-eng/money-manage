@@ -374,6 +374,7 @@ textarea.fc{resize:vertical;min-height:90px;}
   <div class="card">
     <div class="filter-bar">
       <input type="month" class="fc" id="lf-mo" onchange="renderLedger()"/>
+      <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('lf-mo').value='';renderLedger()" style="white-space:nowrap">📅 所有月份</button>
       <select class="fc" id="lf-t" onchange="renderLedger()"><option value="">所有類型</option><option value="in">收入</option><option value="out">支出</option></select>
       <select class="fc" id="lf-l" onchange="renderLedger()"><option value="">所有地點</option></select>
       <input type="text" class="fc" id="lf-s" placeholder="搜尋..." oninput="renderLedger()"/>
@@ -645,7 +646,55 @@ const tod = () => new Date().toISOString().slice(0,10);
 const mon = () => new Date().toISOString().slice(0,7);
 const fmt = n => (n||0).toLocaleString();
 const mems = () => Object.entries(D.members).map(([id,m])=>({id,...m}));
-const txs = () => Object.entries(D.transactions).map(([id,t])=>({id,...t}));
+const txs = () => {
+  const list = Object.entries(D.transactions).map(([id,t])=>({id,...t}));
+  const existingRefs = new Set(list.map(t=>t.ref).filter(Boolean));
+
+  // 補強：若 fixedExecutions 存在但對應 transactions 遺失，自動擬合呈現於帳目明細
+  Object.entries(D.fixedExecutions).forEach(([exId, ex]) => {
+    if (!existingRefs.has(exId) && ex.done) {
+      const f = D.fixedItems[ex.fixedId];
+      list.push({
+        id: 'ex_' + exId,
+        type: 'out',
+        name: f ? f.name + '（固定）' : '固定支出',
+        category: f ? f.name : '固定支出',
+        location: ex.location || (f ? f.location : 'P2'),
+        amount: f ? f.amount : 0,
+        date: ex.date || (ex.createdAt ? new Date(ex.createdAt).toISOString().slice(0, 10) : tod()),
+        paidBy: ex.paidBy || null,
+        note: ex.note || '',
+        photo: ex.photo || null,
+        ref: exId,
+        balanceAfter: D.balance,
+        createdAt: ex.createdAt || Date.now()
+      });
+    }
+  });
+
+  // 補強：若 deposits 存在但對應 transactions 遺失，自動擬合呈現於帳目明細
+  Object.entries(D.deposits).forEach(([dId, d]) => {
+    if (!existingRefs.has(dId)) {
+      list.push({
+        id: 'dep_' + dId,
+        type: 'in',
+        name: mName(d.memberId) + ' 繳款',
+        category: '繳款',
+        location: d.location || null,
+        amount: d.amount || 0,
+        date: d.date || (d.createdAt ? new Date(d.createdAt).toISOString().slice(0, 10) : tod()),
+        paidBy: d.memberId || null,
+        note: d.note || '',
+        photo: d.photo || null,
+        ref: dId,
+        balanceAfter: D.balance,
+        createdAt: d.createdAt || Date.now()
+      });
+    }
+  });
+
+  return list;
+};
 const deps = () => Object.entries(D.deposits).map(([id,d])=>({id,...d}));
 const fixes = () => Object.entries(D.fixedItems).map(([id,f])=>({id,...f}));
 const execs = () => Object.entries(D.fixedExecutions).map(([id,e])=>({id,...e}));
