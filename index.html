@@ -364,11 +364,10 @@ textarea.fc{resize:vertical;min-height:90px;}
       <button class="btn btn-p" onclick="openFixed()">＋ 新增固定項目</button>
     </div>
   </div>
-  <div class="card mb6">
+  <div class="card">
     <div class="ct">固定支出清單</div>
     <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
   </div>
-  <div class="card"><div class="ct">本月執行狀況 <span style="font-size:12px;font-weight:400;color:var(--t3);margin-left:8px">（💡 點擊「立即扣款」或「⚡ 執行本月全部扣款」即可扣除金額並自動記入帳目明細）</span></div><div id="fix-exec"></div></div>
 </div>
 
 <!-- LEDGER -->
@@ -998,20 +997,23 @@ function renderFixed() {
       </tr>`).join('');
 
   const m=mon(), af=fs.filter(f=>f.active!==false);
-  document.getElementById('fix-exec').innerHTML = af.length===0
-    ? `<div class="empty" style="padding:20px"><p>無啟用中的固定支出</p></div>`
-    : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:13px">${
-        af.map(f=>{
-          const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
-          const done=ex&&ex.done;
-          return `<div class="card" style="padding:15px">
-            <div style="font-weight:800;margin-bottom:4px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div>
-            <div style="font-size:21px;font-weight:900;color:var(--amber);margin-bottom:9px">NT$${fmt(f.amount)}</div>
-            ${done?`<div class="badge b-green">✓ 已扣款</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${ex.date}·${mName(ex.paidBy)} <button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯" style="padding:1px 4px;font-size:10px">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額" style="padding:1px 4px;font-size:10px">🗑</button></div>`:
-            `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
-          </div>`;
-        }).join('')
-      }</div>`;
+  const elExec = document.getElementById('fix-exec');
+  if (elExec) {
+    elExec.innerHTML = af.length===0
+      ? `<div class="empty" style="padding:20px"><p>無啟用中的固定支出</p></div>`
+      : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:13px">${
+          af.map(f=>{
+            const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
+            const done=ex&&ex.done;
+            return `<div class="card" style="padding:15px">
+              <div style="font-weight:800;margin-bottom:4px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div>
+              <div style="font-size:21px;font-weight:900;color:var(--amber);margin-bottom:9px">NT$${fmt(f.amount)}</div>
+              ${done?`<div class="badge b-green">✓ 已扣款</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${ex.date}·${mName(ex.paidBy)} <button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯" style="padding:1px 4px;font-size:10px">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額" style="padding:1px 4px;font-size:10px">🗑</button></div>`:
+              `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
+            </div>`;
+          }).join('')
+        }</div>`;
+  }
 }
 
 function togFix(id) { const f=D.fixedItems[id]; if(f) rRef.child('fixedItems/'+id+'/active').set(!(f.active!==false)); }
