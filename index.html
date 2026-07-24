@@ -1849,6 +1849,55 @@ async function submitTxEdit() {
 }
 
 // --- Identity ---
+function fillLoginSelect(selectId) {
+  const sel = document.getElementById(selectId);
+  if (!sel) return;
+  const list = mems();
+  sel.innerHTML = list.map(m => `<option value="${m.id}">${m.name} (${m.role === 'admin' ? '👑 管理者' : '👤 一般使用者'})</option>`).join('');
+  if (list.length > 0) {
+    if (CFG && CFG.currentMemberId && D.members[CFG.currentMemberId]) {
+      sel.value = CFG.currentMemberId;
+    } else {
+      sel.value = list[0].id;
+    }
+    onLoginSelChange(sel.value, selectId === 'login-mid-sel' ? 'login-role-preview' : 's-role-preview');
+  }
+}
+
+function onLoginSelChange(mid, prevId = 'login-role-preview') {
+  const m = D.members[mid];
+  const prev = document.getElementById(prevId);
+  if (m && prev) {
+    const isAdm = m.role === 'admin';
+    prev.innerHTML = `<div style="background:${isAdm ? 'rgba(99,179,237,.15)' : 'rgba(255,255,255,.05)'};border:1px solid ${isAdm ? 'rgba(99,179,237,.4)' : 'var(--border)'};border-radius:var(--rsm);padding:10px 13px;font-size:12px;display:flex;align-items:center;gap:8px">
+      <span style="font-size:16px">${isAdm ? '👑' : '👤'}</span>
+      <div>
+        <div style="font-weight:800;color:${isAdm ? 'var(--blue)' : 'var(--t1)'}">${m.name}（${isAdm ? '管理者' : '一般使用者'}）</div>
+        <div style="font-size:11px;color:var(--t3)">${isAdm ? '具有完整新增、編輯、扣款與管理權限' : '僅可檢視資料，無編輯修改權限'}</div>
+      </div>
+    </div>`;
+  }
+}
+
+function submitLoginModal() {
+  const mid = document.getElementById('login-mid-sel').value;
+  const pass = document.getElementById('login-pass-input').value;
+  const m = D.members[mid];
+  if (!m) return toast('請選擇成員', 'error');
+
+  if (m.password && pass !== m.password) {
+    return toast('密碼錯誤！請重新輸入', 'error');
+  }
+
+  CFG.currentMemberId = mid;
+  CFG.role = m.role || 'user';
+  localStorage.setItem(LK, JSON.stringify(CFG));
+  closeM('mo-id');
+  document.getElementById('login-pass-input').value = '';
+  toast(`登入成功！歡迎回來 ${m.name}（${m.role === 'admin' ? '👑 管理者' : '👤 一般使用者'}）`, 'success');
+  renderPage(curPage);
+}
+
 function openIdentity(){
   fillLoginSelect('login-mid-sel');
   const elPass = document.getElementById('login-pass-input');
