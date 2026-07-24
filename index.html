@@ -647,20 +647,47 @@ const mon = () => new Date().toISOString().slice(0,7);
 const fmt = n => (n||0).toLocaleString();
 const mems = () => Object.entries(D.members).map(([id,m])=>({id,...m}));
 const txs = () => {
-  const list = Object.entries(D.transactions).map(([id,t])=>({id,...t}));
-  const existingRefs = new Set(list.map(t=>t.ref).filter(Boolean));
+  const list = Object.entries(D.transactions).map(([id, t]) => {
+    let item = { id, ...t };
+    if (t.ref && D.fixedExecutions[t.ref]) {
+      const ex = D.fixedExecutions[t.ref];
+      const f = D.fixedItems[ex.fixedId];
+      const fixName = f ? f.name : (ex.name || '固定支出');
+      item.name = item.name || (fixName.includes('（固定）') ? fixName : fixName + '（固定）');
+      item.category = fixName;
+      item.location = ex.location || item.location || (f ? f.location : 'P2');
+      item.amount = typeof item.amount === 'number' ? item.amount : (f ? f.amount : (ex.amount || 0));
+      item.date = ex.date || item.date || tod();
+      item.paidBy = ex.paidBy || item.paidBy || null;
+      item.photo = ex.photo || item.photo || null;
+      item.note = ex.note || item.note || '';
+    } else if (t.ref && D.deposits[t.ref]) {
+      const d = D.deposits[t.ref];
+      item.location = d.location || item.location || null;
+      item.amount = typeof item.amount === 'number' ? item.amount : (d.amount || 0);
+      item.date = d.date || item.date || tod();
+      item.paidBy = d.memberId || item.paidBy || null;
+      item.photo = d.photo || item.photo || null;
+      item.note = d.note || item.note || '';
+    }
+    return item;
+  });
+
+  const existingRefs = new Set(list.map(t => t.ref).filter(Boolean));
 
   // 補強：若 fixedExecutions 存在但對應 transactions 遺失，自動擬合呈現於帳目明細
   Object.entries(D.fixedExecutions).forEach(([exId, ex]) => {
     if (!existingRefs.has(exId) && ex.done) {
       const f = D.fixedItems[ex.fixedId];
+      const fixName = f ? f.name : (ex.name || '固定支出');
+      const amt = typeof ex.amount === 'number' ? ex.amount : (f ? f.amount : 0);
       list.push({
         id: 'ex_' + exId,
         type: 'out',
-        name: f ? f.name + '（固定）' : '固定支出',
-        category: f ? f.name : '固定支出',
+        name: fixName.includes('（固定）') ? fixName : fixName + '（固定）',
+        category: fixName,
         location: ex.location || (f ? f.location : 'P2'),
-        amount: f ? f.amount : 0,
+        amount: amt,
         date: ex.date || (ex.createdAt ? new Date(ex.createdAt).toISOString().slice(0, 10) : tod()),
         paidBy: ex.paidBy || null,
         note: ex.note || '',
@@ -805,7 +832,7 @@ function startApp() {
     rRef = db.ref('rooms/' + CFG.roomCode);
     document.getElementById('setup-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'flex';
-    document.getElementById('lf-mo').value = mon();
+    document.getElementById('lf-mo').value = '';
     document.getElementById('rpt-mo').value = mon();
     listen();
   } catch(e) { toast('Firebase 連線失敗：'+e.message,'error'); showSetup(); }
