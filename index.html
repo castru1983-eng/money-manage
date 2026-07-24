@@ -900,10 +900,11 @@ function renderDash() {
   document.getElementById('h-exp').textContent = fmt(exp);
   document.getElementById('h-inc').textContent = fmt(inc);
   document.getElementById('h-fix').textContent = fmt(fixTot);
-  document.getElementById('sc1').textContent = fmt(Math.max(0,D.balance-fixTot));
-  document.getElementById('sc2').textContent = fmt(inc);
-  document.getElementById('sc3').textContent = fmt(exp);
-  document.getElementById('sc4').textContent = fixes().filter(f=>f.active!==false).length;
+  const unpaidFixTot = fixes().filter(f => f.active !== false && !execs().find(e => e.fixedId === f.id && e.month === m && e.done)).reduce((s, f) => s + (f.amount || 0), 0);
+  const elSc1 = document.getElementById('sc1'); if (elSc1) elSc1.textContent = fmt(Math.max(0, D.balance - unpaidFixTot));
+  const elSc2 = document.getElementById('sc2'); if (elSc2) elSc2.textContent = fmt(inc);
+  const elSc3 = document.getElementById('sc3'); if (elSc3) elSc3.textContent = fmt(exp);
+  const elSc4 = document.getElementById('sc4'); if (elSc4) elSc4.textContent = fixes().filter(f=>f.active!==false).length;
 
   const rec = txs().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,6);
   document.getElementById('recent-tx').innerHTML = rec.length===0
