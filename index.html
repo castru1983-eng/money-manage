@@ -123,6 +123,7 @@ tbody tr:last-child{border-bottom:none;}
 .b-amber{background:rgba(246,173,85,.15);color:var(--amber);}
 .b-red{background:rgba(252,129,129,.15);color:var(--red);}
 .b-violet{background:rgba(159,122,234,.15);color:var(--violet);}
+.b-cyan{background:rgba(118,228,247,.15);color:var(--cyan);}
 .b-gray{background:rgba(160,174,192,.1);color:var(--t2);}
 
 /* ── BUTTONS ── */
@@ -362,7 +363,7 @@ textarea.fc{resize:vertical;min-height:90px;}
   </div>
   <div class="card mb6">
     <div class="ct">固定支出清單</div>
-    <div class="tw"><table><thead><tr><th>項目</th><th>類別</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>類別</th><th>金額/月</th><th>扣款日</th><th>狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
   </div>
   <div class="card"><div class="ct">本月執行狀況</div><div id="fix-exec"></div></div>
 </div>
@@ -374,9 +375,10 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="filter-bar">
       <input type="month" class="fc" id="lf-mo" onchange="renderLedger()"/>
       <select class="fc" id="lf-t" onchange="renderLedger()"><option value="">所有類型</option><option value="in">收入</option><option value="out">支出</option></select>
+      <select class="fc" id="lf-l" onchange="renderLedger()"><option value="">所有地點</option></select>
       <input type="text" class="fc" id="lf-s" placeholder="搜尋..." oninput="renderLedger()"/>
     </div>
-    <div class="tw"><table><thead><tr><th>日期</th><th>類型</th><th>項目</th><th>類別</th><th>相關人員</th><th>金額</th><th>餘額</th></tr></thead><tbody id="led-tbody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>日期</th><th>類型</th><th>項目</th><th>地點</th><th>類別</th><th>相關人員</th><th>金額</th><th>餘額</th></tr></thead><tbody id="led-tbody"></tbody></table></div>
     <div class="flex g3i" style="margin-top:12px;flex-wrap:wrap" id="led-sum"></div>
   </div>
 </div>
@@ -390,12 +392,12 @@ textarea.fc{resize:vertical;min-height:90px;}
   <div class="g4 mb6" id="rpt-stats"></div>
   <div class="g2 mb6">
     <div class="card"><div class="ct">支出類別分佈</div><div style="position:relative;height:250px"><canvas id="ch-pie"></canvas></div></div>
-    <div class="card"><div class="ct">成員使用量</div><div style="position:relative;height:250px"><canvas id="ch-bar"></canvas></div></div>
+    <div class="card"><div class="ct">各地點支出分佈 (P2/P3/宿舍)</div><div style="position:relative;height:250px"><canvas id="ch-loc"></canvas></div></div>
   </div>
   <div class="card mb6"><div class="ct">近 6 個月趨勢</div><div style="position:relative;height:230px"><canvas id="ch-line"></canvas></div></div>
   <div class="card">
     <div class="ct">本月支出明細</div>
-    <div class="tw"><table><thead><tr><th>日期</th><th>項目</th><th>類別</th><th>負責人</th><th>金額</th></tr></thead><tbody id="rpt-tbody"></tbody></table></div>
+    <div class="tw"><table><thead><tr><th>日期</th><th>項目</th><th>地點</th><th>類別</th><th>負責人</th><th>金額</th></tr></thead><tbody id="rpt-tbody"></tbody></table></div>
   </div>
 </div>
 
@@ -425,6 +427,14 @@ textarea.fc{resize:vertical;min-height:90px;}
           <button class="btn btn-sec btn-sm" onclick="addCat()">新增</button>
         </div>
       </div>
+      <div class="card mb4">
+        <div class="ct">地點 / 場所</div>
+        <div id="set-locs"></div>
+        <div class="mt4 flex g2i">
+          <input type="text" class="fc" id="new-loc" placeholder="新地點名稱" style="flex:1"/>
+          <button class="btn btn-sec btn-sm" onclick="addLoc()">新增</button>
+        </div>
+      </div>
       <div class="card">
         <div class="ct">資料</div>
         <div class="srow"><div><div class="srow-label">匯出備份</div><div class="srow-sub">下載 JSON 備份</div></div><button class="btn btn-sec btn-sm" onclick="exportData()">📥 匯出</button></div>
@@ -440,7 +450,10 @@ textarea.fc{resize:vertical;min-height:90px;}
 <div class="mo" id="mo-funds">
   <div class="md">
     <div class="mh"><div class="mt">💰 注入資金</div><button class="mc" onclick="closeM('mo-funds')">✕</button></div>
-    <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="f-amt" placeholder="0" min="1"/></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="f-amt" placeholder="0" min="1"/></div>
+      <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="f-loc"></select></div>
+    </div>
     <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="f-date"/></div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="f-note" placeholder="說明資金來源..."/></div>
     <div class="fg">
@@ -467,7 +480,10 @@ textarea.fc{resize:vertical;min-height:90px;}
       <div class="fg"><label class="fl">成員</label><select class="fc" id="d-mem"></select></div>
       <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="d-amt" placeholder="0" min="1"/></div>
     </div>
-    <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="d-date"/></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="d-date"/></div>
+      <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="d-loc"></select></div>
+    </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="d-note" placeholder="例如：2024年7月份..."/></div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 匯款憑證 (選填)</label>
@@ -492,11 +508,11 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="fg"><label class="fl">項目名稱</label><input type="text" class="fc" id="fix-name" placeholder="例如：房租、水電費..."/></div>
     <div class="fr">
       <div class="fg"><label class="fl">類別</label><select class="fc" id="fix-cat"></select></div>
-      <div class="fg"><label class="fl">每月金額 (NT$)</label><input type="number" class="fc" id="fix-amt" placeholder="0" min="1"/></div>
+      <div class="fg"><label class="fl">地點 / 場所 (P2/P3/宿舍)</label><select class="fc" id="fix-loc"></select></div>
     </div>
     <div class="fr">
+      <div class="fg"><label class="fl">每月金額 (NT$)</label><input type="number" class="fc" id="fix-amt" placeholder="0" min="1"/></div>
       <div class="fg"><label class="fl">每月幾號扣款</label><input type="number" class="fc" id="fix-day" placeholder="1~31" min="1" max="31"/></div>
-      <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="fix-note" placeholder="選填..."/></div>
     </div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 單據範本 (選填)</label>
@@ -522,7 +538,7 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div style="background:var(--glass);border:1px solid var(--border);border-radius:var(--rsm);padding:14px;margin-bottom:16px" id="exec-info"></div>
     <div class="fr">
       <div class="fg"><label class="fl">繳款人（誰去繳的）</label><select class="fc" id="exec-paid"><option value="">不指定</option></select></div>
-      <div class="fg"><label class="fl">繳款日期</label><input type="date" class="fc" id="exec-date"/></div>
+      <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="exec-loc"></select></div>
     </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="exec-note" placeholder="選填..."/></div>
     <div class="fg">
@@ -569,12 +585,13 @@ textarea.fc{resize:vertical;min-height:90px;}
     <div class="fg"><label class="fl">項目名稱</label><input type="text" class="fc" id="txe-name"/></div>
     <div class="fr">
       <div class="fg"><label class="fl">類別</label><select class="fc" id="txe-cat"></select></div>
-      <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="txe-amt" placeholder="0" min="1"/></div>
+      <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="txe-loc"></select></div>
     </div>
     <div class="fr">
+      <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="txe-amt" placeholder="0" min="1"/></div>
       <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="txe-date"/></div>
-      <div class="fg"><label class="fl">相關/經手人員</label><select class="fc" id="txe-paid"><option value="">不指定</option></select></div>
     </div>
+    <div class="fg"><label class="fl">相關/經手人員</label><select class="fc" id="txe-paid"><option value="">不指定</option></select></div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="txe-note" placeholder="選填..."/></div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 發票憑證 (選填)</label>
@@ -600,6 +617,7 @@ textarea.fc{resize:vertical;min-height:90px;}
 // ═══════════════════════════════════════════════
 const LK = 'sfund_v3';
 const DEF_CATS = ['房租','水電費','餐飲','交通','採購','娛樂','醫療','其他'];
+const DEF_LOCS = ['P2','P3','宿舍'];
 const COLORS = ['#63b3ed','#9f7aea','#68d391','#f6ad55','#fc8181','#76e4f7','#fbb6ce'];
 const ICONS = {'房租':'🏠','水電費':'💡','餐飲':'🍱','交通':'🚗','採購':'🛒','娛樂':'🎮','醫療':'🏥','繳款':'📥','注入':'💰','其他':'📌'};
 
@@ -608,8 +626,8 @@ let db = null, rRef = null, curPage = 'dashboard';
 const charts = {};
 
 let D = {
-  balance: 0, members: {}, categories: [...DEF_CATS],
-  transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}, pettyItems: {}
+  balance: 0, members: {}, categories: [...DEF_CATS], locations: [...DEF_LOCS],
+  transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}
 };
 
 // ═══════════════════════════════════════════════
@@ -749,6 +767,7 @@ function listen() {
     D.balance = typeof v.balance === 'number' ? v.balance : 0;
     D.members = v.members||{};
     D.categories = v.categories ? (Array.isArray(v.categories)?v.categories:Object.values(v.categories)) : [...DEF_CATS];
+    D.locations = v.locations ? (Array.isArray(v.locations)?v.locations:Object.values(v.locations)) : [...DEF_LOCS];
     D.transactions = v.transactions||{};
     D.fixedItems = v.fixedItems||{};
     D.fixedExecutions = v.fixedExecutions||{};
@@ -762,7 +781,7 @@ function listen() {
 async function initRoom() {
   const ms = {};
   ['成員 A','成員 B','成員 C'].forEach((n,i)=>{ const id=gid(); ms[id]={name:n,color:COLORS[i],createdAt:Date.now()}; });
-  await rRef.set({balance:0,members:ms,categories:DEF_CATS,transactions:{},fixedItems:{},fixedExecutions:{},deposits:{}});
+  await rRef.set({balance:0,members:ms,categories:DEF_CATS,locations:DEF_LOCS,transactions:{},fixedItems:{},fixedExecutions:{},deposits:{}});
 }
 
 // ═══════════════════════════════════════════════
@@ -804,7 +823,7 @@ function renderDash() {
     ? `<div class="empty"><div class="empty-icon">📭</div><p>尚無交易紀錄</p></div>`
     : rec.map(t=>`<div class="tx-item">
         <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.category)}</div>
-        <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}·${t.category||'-'}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
+        <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}·${t.category||'-'}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
         ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
         <button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>
         <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
@@ -821,7 +840,7 @@ function renderDash() {
         const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
         const done=ex&&ex.done;
         return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name}</div><div style="font-size:11px;color:var(--t3)">${f.category||'-'} · ${f.day?f.day+'號':'-'}扣款</div></div>
+          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.category||'-'} · ${f.day?f.day+'號':'-'}扣款</div></div>
           <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
           ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button>`:
           `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
@@ -878,9 +897,10 @@ async function delDeposit(id) {
 function renderFixed() {
   const fs=fixes();
   document.getElementById('fix-tbody').innerHTML = fs.length===0
-    ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
+    ? `<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
     : fs.map(f=>`<tr>
         <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
+        <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
         <td><span class="badge b-violet">${f.category||'-'}</span></td>
         <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
         <td style="color:var(--t2)">${f.day?f.day+'號':'-'}</td>
@@ -895,12 +915,12 @@ function renderFixed() {
   const m=mon(), af=fs.filter(f=>f.active!==false);
   document.getElementById('fix-exec').innerHTML = af.length===0
     ? `<div class="empty" style="padding:20px"><p>無啟用中的固定支出</p></div>`
-    : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:13px">${
+    : `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:13px">${
         af.map(f=>{
           const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
           const done=ex&&ex.done;
           return `<div class="card" style="padding:15px">
-            <div style="font-weight:800;margin-bottom:4px">${f.name}</div>
+            <div style="font-weight:800;margin-bottom:4px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div>
             <div style="font-size:21px;font-weight:900;color:var(--amber);margin-bottom:9px">NT$${fmt(f.amount)}</div>
             ${done?`<div class="badge b-green">✓ 已扣款</div><div style="font-size:11px;color:var(--t3);margin-top:4px">${ex.date}·${mName(ex.paidBy)}</div>`:
             `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">立即扣款</button>`}
@@ -916,17 +936,20 @@ async function delFix(id) { if(!confirm('確定刪除？'))return; await rRef.ch
 //  LEDGER
 // ═══════════════════════════════════════════════
 function renderLedger() {
-  const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, sF=document.getElementById('lf-s').value.toLowerCase();
+  fillLocs('lf-l', '所有地點');
+  const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, lF=document.getElementById('lf-l').value, sF=document.getElementById('lf-s').value.toLowerCase();
   let list=txs().sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
   if(moF)list=list.filter(t=>t.date.startsWith(moF));
   if(tF)list=list.filter(t=>t.type===tF);
-  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.category||'').toLowerCase().includes(sF));
+  if(lF)list=list.filter(t=>t.location===lF);
+  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.category||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF));
   document.getElementById('led-tbody').innerHTML=list.length===0
-    ?`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
+    ?`<tr><td colspan="8" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
     :list.map(t=>`<tr>
         <td>${t.date}</td>
         <td><span class="badge ${t.type==='in'?'b-green':'b-red'}">${t.type==='in'?'收入':'支出'}</span></td>
         <td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}</td>
+        <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
         <td>${t.category?`<span class="badge b-violet">${t.category}</span>`:'-'}</td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
@@ -960,16 +983,18 @@ function renderReport() {
   mt.filter(t=>t.type==='out').forEach(t=>{const c=t.category||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
   makePie('ch-pie',catMap,250);
 
-  const mMap={}; mems().forEach(m2=>mMap[m2.id]=0);
-  mt.filter(t=>t.type==='out'&&t.paidBy).forEach(t=>{mMap[t.paidBy]=(mMap[t.paidBy]||0)+t.amount;});
-  makeBar('ch-bar',mMap);
+  const locMap={};
+  mt.filter(t=>t.type==='out').forEach(t=>{const l=t.location||'未指定';locMap[l]=(locMap[l]||0)+t.amount;});
+  makePie('ch-loc',locMap,250);
+
   makeLine('ch-line',m);
 
   const out=mt.filter(t=>t.type==='out').sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('rpt-tbody').innerHTML=out.length===0
-    ?`<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:18px">無支出</td></tr>`
+    ?`<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:18px">無支出</td></tr>`
     :out.map(t=>`<tr>
         <td>${t.date}</td><td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:1px 5px;font-size:11px;margin-left:4px">✏️</button></td>
+        <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
         <td><span class="badge b-violet">${t.category||'-'}</span></td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:var(--red)">NT$${fmt(t.amount)}</td>
@@ -996,6 +1021,11 @@ function renderSettings() {
       <span style="font-size:13px">${catIcon(c)} ${c}</span>
       <button class="btn btn-d btn-icon btn-sm" onclick="delCat(${i})">🗑</button>
     </div>`).join('');
+  document.getElementById('set-locs').innerHTML=(D.locations||DEF_LOCS).map((loc,i)=>`
+    <div class="srow">
+      <span style="font-size:13px">📍 ${loc}</span>
+      <button class="btn btn-d btn-icon btn-sm" onclick="delLoc(${i})">🗑</button>
+    </div>`).join('');
   document.getElementById('info-room').textContent=CFG.roomCode;
   document.getElementById('info-me').textContent=mName(CFG.currentMemberId);
 }
@@ -1006,6 +1036,8 @@ function addMember(){const n=prompt('輸入新成員名稱：');if(!n?.trim())re
 async function delMem(id){if(!confirm('確定刪除？'))return;await rRef.child('members/'+id).remove();}
 async function addCat(){const v=document.getElementById('new-cat').value.trim();if(!v||D.categories.includes(v))return;await rRef.child('categories').set([...D.categories,v]);document.getElementById('new-cat').value='';}
 async function delCat(i){await rRef.child('categories').set(D.categories.filter((_,j)=>j!==i));}
+async function addLoc(){const v=document.getElementById('new-loc').value.trim();const curLocs=D.locations&&D.locations.length?D.locations:[...DEF_LOCS];if(!v||curLocs.includes(v))return;await rRef.child('locations').set([...curLocs,v]);document.getElementById('new-loc').value='';}
+async function delLoc(i){const curLocs=D.locations&&D.locations.length?D.locations:[...DEF_LOCS];await rRef.child('locations').set(curLocs.filter((_,j)=>j!==i));}
 function resetConn(){if(!confirm('確定重設連線？'))return;localStorage.removeItem(LK);location.reload();}
 function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({...D,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='共用金備份_'+tod()+'.json';a.click();toast('已匯出','success');}
 
@@ -1018,18 +1050,19 @@ document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.
 
 function fillMems(selId,empty=true){document.getElementById(selId).innerHTML=(empty?'<option value="">不指定</option>':'')+mems().map(m=>`<option value="${m.id}">${m.name}</option>`).join('');}
 function fillCats(selId){document.getElementById(selId).innerHTML=D.categories.map(c=>`<option value="${c}">${c}</option>`).join('');}
+function fillLocs(selId,emptyText='不指定/全區'){const locList=(D.locations&&D.locations.length)?D.locations:DEF_LOCS;const el=document.getElementById(selId);if(!el)return;el.innerHTML=(emptyText?`<option value="">${emptyText}</option>`:'')+locList.map(l=>`<option value="${l}">${l}</option>`).join('');}
 
 // --- Funds ---
-function openFunds(){document.getElementById('f-amt').value='';document.getElementById('f-date').value=tod();document.getElementById('f-note').value='';clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val');openM('mo-funds');}
+function openFunds(){fillLocs('f-loc','不指定');document.getElementById('f-amt').value='';document.getElementById('f-date').value=tod();document.getElementById('f-note').value='';clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val');openM('mo-funds');}
 async function submitFunds(){
-  const amt=parseFloat(document.getElementById('f-amt').value), date=document.getElementById('f-date').value, note=document.getElementById('f-note').value.trim();
+  const amt=parseFloat(document.getElementById('f-amt').value), loc=document.getElementById('f-loc').value||null, date=document.getElementById('f-date').value, note=document.getElementById('f-note').value.trim();
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   if(!date)return toast('請選擇日期','error');
   const photo = await getPhotoValue('f-photo-input', 'f-photo-val');
   try{
     const r=await rRef.child('balance').transaction(b=>(b||0)+amt);
     const nb=r.snapshot.val();
-    await rRef.child('transactions').push({type:'in',name:'資金注入'+(note?`（${note}）`:''),category:'注入',amount:amt,date,note,photo:photo||null,paidBy:CFG.currentMemberId||null,balanceAfter:nb,createdAt:Date.now()});
+    await rRef.child('transactions').push({type:'in',name:'資金注入'+(note?`（${note}）`:''),category:'注入',location:loc,amount:amt,date,note,photo:photo||null,paidBy:CFG.currentMemberId||null,balanceAfter:nb,createdAt:Date.now()});
     closeM('mo-funds'); toast('已注入 NT$'+fmt(amt),'success');
   }catch(e){toast('操作失敗','error');}
 }
@@ -1037,6 +1070,7 @@ async function submitFunds(){
 // --- Deposit ---
 function openDeposit(did){
   fillMems('d-mem',false);
+  fillLocs('d-loc','不指定');
   const isE=!!did;
   document.getElementById('d-mtitle').textContent = isE ? '✏️ 編輯成員繳款' : '📥 成員繳款';
   document.getElementById('d-eid').value = did || '';
@@ -1046,6 +1080,7 @@ function openDeposit(did){
       document.getElementById('d-mem').value = d.memberId || '';
       document.getElementById('d-amt').value = d.amount || '';
       document.getElementById('d-date').value = d.date || tod();
+      document.getElementById('d-loc').value = d.location || '';
       document.getElementById('d-note').value = d.note || '';
       setPhotoPreview(d.photo, 'd-photo-prev', 'd-photo-val', 'd-photo-img');
     }
@@ -1059,7 +1094,7 @@ function openDeposit(did){
   openM('mo-dep');
 }
 async function submitDeposit(){
-  const mid=document.getElementById('d-mem').value, amt=parseFloat(document.getElementById('d-amt').value), date=document.getElementById('d-date').value, note=document.getElementById('d-note').value.trim(), did=document.getElementById('d-eid').value;
+  const mid=document.getElementById('d-mem').value, amt=parseFloat(document.getElementById('d-amt').value), date=document.getElementById('d-date').value, loc=document.getElementById('d-loc').value||null, note=document.getElementById('d-note').value.trim(), did=document.getElementById('d-eid').value;
   if(!mid)return toast('請選擇成員','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   if(!date)return toast('請選擇日期','error');
@@ -1070,9 +1105,9 @@ async function submitDeposit(){
     try {
       const r = await rRef.child('balance').transaction(b => (b||0) + diff);
       const nb = r.snapshot.val();
-      await rRef.child('deposits/' + did).update({ memberId: mid, amount: amt, date, note, photo: photo || null });
+      await rRef.child('deposits/' + did).update({ memberId: mid, amount: amt, date, location: loc, note, photo: photo || null });
       const tx = txs().find(t => t.ref === did);
-      if (tx) await rRef.child('transactions/' + tx.id).update({ name: mName(mid) + ' 繳款', amount: amt, date, paidBy: mid, note, photo: photo || null, balanceAfter: nb });
+      if (tx) await rRef.child('transactions/' + tx.id).update({ name: mName(mid) + ' 繳款', amount: amt, date, location: loc, paidBy: mid, note, photo: photo || null, balanceAfter: nb });
       closeM('mo-dep'); toast('已更新繳款紀錄與照片', 'success');
     } catch (e) { toast('更新失敗', 'error'); }
   } else {
@@ -1080,8 +1115,8 @@ async function submitDeposit(){
       const r=await rRef.child('balance').transaction(b=>(b||0)+amt);
       const nb=r.snapshot.val();
       const dr=rRef.child('deposits').push(); const key=dr.key;
-      await dr.set({memberId:mid,amount:amt,date,note,photo:photo||null,createdAt:Date.now()});
-      await rRef.child('transactions').push({type:'in',name:mName(mid)+' 繳款',category:'繳款',amount:amt,date,paidBy:mid,note,photo:photo||null,ref:key,balanceAfter:nb,createdAt:Date.now()});
+      await dr.set({memberId:mid,amount:amt,date,location:loc,note,photo:photo||null,createdAt:Date.now()});
+      await rRef.child('transactions').push({type:'in',name:mName(mid)+' 繳款',category:'繳款',location:loc,amount:amt,date,paidBy:mid,note,photo:photo||null,ref:key,balanceAfter:nb,createdAt:Date.now()});
       closeM('mo-dep'); toast(mName(mid)+' 繳款 NT$'+fmt(amt),'success');
     }catch(e){toast('操作失敗','error');}
   }
@@ -1090,6 +1125,7 @@ async function submitDeposit(){
 // --- Fixed ---
 function openFixed(eid){
   fillCats('fix-cat');
+  fillLocs('fix-loc', false);
   const isE=!!eid;
   document.getElementById('fix-mtitle').textContent=isE?'✏️ 編輯固定支出':'＋ 新增固定支出';
   document.getElementById('fix-eid').value=eid||'';
@@ -1098,6 +1134,7 @@ function openFixed(eid){
     if(f){
       document.getElementById('fix-name').value=f.name||'';
       document.getElementById('fix-cat').value=f.category||'';
+      document.getElementById('fix-loc').value=f.location||'P2';
       document.getElementById('fix-amt').value=f.amount||'';
       document.getElementById('fix-day').value=f.day||'';
       document.getElementById('fix-note').value=f.note||'';
@@ -1110,11 +1147,11 @@ function openFixed(eid){
   openM('mo-fixed');
 }
 async function submitFixed(){
-  const name=document.getElementById('fix-name').value.trim(), cat=document.getElementById('fix-cat').value, amt=parseFloat(document.getElementById('fix-amt').value), day=parseInt(document.getElementById('fix-day').value)||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
+  const name=document.getElementById('fix-name').value.trim(), cat=document.getElementById('fix-cat').value, loc=document.getElementById('fix-loc').value||'P2', amt=parseFloat(document.getElementById('fix-amt').value), day=parseInt(document.getElementById('fix-day').value)||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
   if(!name)return toast('請輸入項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
-  const data={name,category:cat,amount:amt,day,note,photo:photo||null};
+  const data={name,category:cat,location:loc,amount:amt,day,note,photo:photo||null};
   if(eid)await rRef.child('fixedItems/'+eid).update(data);
   else await rRef.child('fixedItems').push({...data,active:true,createdAt:Date.now()});
   closeM('mo-fixed'); toast(eid?'已更新':'已新增固定支出','success');
@@ -1127,17 +1164,20 @@ function openExec(fid, exId){
   document.getElementById('exec-eid').value=exId||'';
   const isE = !!exId;
   document.getElementById('exec-title').textContent = isE ? '✏️ 編輯扣款紀錄 / 照片：' + f.name : '執行扣款：' + f.name;
-  document.getElementById('exec-info').innerHTML=`<div style="font-weight:800;margin-bottom:5px">${f.name}</div><div style="font-size:24px;font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</div><div style="font-size:11px;color:var(--t3);margin-top:3px">${f.category||''} · ${mon()}份</div>`;
+  document.getElementById('exec-info').innerHTML=`<div style="font-weight:800;margin-bottom:5px">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${f.location||'P2'}</span></div><div style="font-size:24px;font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</div><div style="font-size:11px;color:var(--t3);margin-top:3px">${f.category||''} · ${mon()}份</div>`;
   fillMems('exec-paid',true);
+  fillLocs('exec-loc', false);
   if (isE) {
     const ex = D.fixedExecutions[exId];
     if (ex) {
       document.getElementById('exec-paid').value = ex.paidBy || '';
+      document.getElementById('exec-loc').value = ex.location || f.location || 'P2';
       document.getElementById('exec-date').value = ex.date || tod();
       document.getElementById('exec-note').value = ex.note || '';
       setPhotoPreview(ex.photo, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-img');
     }
   } else {
+    document.getElementById('exec-loc').value = f.location || 'P2';
     if(CFG.currentMemberId)document.getElementById('exec-paid').value=CFG.currentMemberId;
     document.getElementById('exec-date').value=tod();
     document.getElementById('exec-note').value='';
@@ -1146,16 +1186,16 @@ function openExec(fid, exId){
   openM('mo-exec');
 }
 async function submitExec(){
-  const fid=document.getElementById('exec-fid').value, exId=document.getElementById('exec-eid').value, paid=document.getElementById('exec-paid').value||null, date=document.getElementById('exec-date').value, note=document.getElementById('exec-note').value.trim();
+  const fid=document.getElementById('exec-fid').value, exId=document.getElementById('exec-eid').value, paid=document.getElementById('exec-paid').value||null, loc=document.getElementById('exec-loc').value||'P2', date=document.getElementById('exec-date').value, note=document.getElementById('exec-note').value.trim();
   const f=D.fixedItems[fid]; if(!f)return;
   if(!date)return toast('請選擇日期','error');
   const photo = await getPhotoValue('exec-photo-input', 'exec-photo-val');
 
   if (exId) {
     try {
-      await rRef.child('fixedExecutions/' + exId).update({ paidBy: paid, date, note, photo: photo || null });
+      await rRef.child('fixedExecutions/' + exId).update({ paidBy: paid, location: loc, date, note, photo: photo || null });
       const tx = txs().find(t => t.ref === exId);
-      if (tx) await rRef.child('transactions/' + tx.id).update({ date, paidBy: paid, note, photo: photo || null });
+      if (tx) await rRef.child('transactions/' + tx.id).update({ date, location: loc, paidBy: paid, note, photo: photo || null });
       closeM('mo-exec'); toast('已更新扣款紀錄與照片', 'success');
     } catch (e) { toast('更新失敗', 'error'); }
   } else {
@@ -1167,8 +1207,8 @@ async function submitExec(){
       if(!r.committed)return toast('餘額不足','error');
       const nb=r.snapshot.val();
       const er=rRef.child('fixedExecutions').push();
-      await er.set({fixedId:fid,month:m,done:true,date,paidBy:paid,note,photo:photo||null,createdAt:Date.now()});
-      await rRef.child('transactions').push({type:'out',name:f.name+'（固定）',category:f.category,amount:f.amount,date,paidBy:paid,note,photo:photo||null,ref:er.key,balanceAfter:nb,createdAt:Date.now()});
+      await er.set({fixedId:fid,month:m,done:true,location:loc,date,paidBy:paid,note,photo:photo||null,createdAt:Date.now()});
+      await rRef.child('transactions').push({type:'out',name:f.name+'（固定）',category:f.category,location:loc,amount:f.amount,date,paidBy:paid,note,photo:photo||null,ref:er.key,balanceAfter:nb,createdAt:Date.now()});
       closeM('mo-exec'); toast('已扣款 NT$'+fmt(f.amount)+'，繳款人：'+mName(paid),'success');
     }catch(e){toast('操作失敗','error');}
   }
@@ -1179,10 +1219,12 @@ function openTxEdit(txId) {
   const t = D.transactions[txId];
   if (!t) return;
   fillCats('txe-cat');
+  fillLocs('txe-loc', '不指定');
   fillMems('txe-paid', true);
   document.getElementById('txe-id').value = txId;
   document.getElementById('txe-name').value = t.name || '';
   document.getElementById('txe-cat').value = t.category || '';
+  document.getElementById('txe-loc').value = t.location || '';
   document.getElementById('txe-amt').value = t.amount || '';
   document.getElementById('txe-date').value = t.date || tod();
   document.getElementById('txe-paid').value = t.paidBy || '';
@@ -1197,6 +1239,7 @@ async function submitTxEdit() {
   if (!t) return;
   const name = document.getElementById('txe-name').value.trim();
   const cat = document.getElementById('txe-cat').value;
+  const loc = document.getElementById('txe-loc').value || null;
   const amt = parseFloat(document.getElementById('txe-amt').value);
   const date = document.getElementById('txe-date').value;
   const paid = document.getElementById('txe-paid').value || null;
@@ -1222,18 +1265,15 @@ async function submitTxEdit() {
       nb = r.snapshot.val();
     }
 
-    const txUpdate = { name, category: cat, amount: amt, date, paidBy: paid, note, photo: photo || null, balanceAfter: nb };
+    const txUpdate = { name, category: cat, location: loc, amount: amt, date, paidBy: paid, note, photo: photo || null, balanceAfter: nb };
     await rRef.child('transactions/' + txId).update(txUpdate);
 
     if (t.ref) {
       if (D.deposits[t.ref]) {
-        await rRef.child('deposits/' + t.ref).update({ memberId: paid, amount: amt, date, note, photo: photo || null });
-      }
-      if (D.pettyItems[t.ref]) {
-        await rRef.child('pettyItems/' + t.ref).update({ name, category: cat, amount: amt, date, memberId: paid, note, photo: photo || null });
+        await rRef.child('deposits/' + t.ref).update({ memberId: paid, location: loc, amount: amt, date, note, photo: photo || null });
       }
       if (D.fixedExecutions[t.ref]) {
-        await rRef.child('fixedExecutions/' + t.ref).update({ paidBy: paid, date, note, photo: photo || null });
+        await rRef.child('fixedExecutions/' + t.ref).update({ paidBy: paid, location: loc, date, note, photo: photo || null });
       }
     }
     closeM('mo-tx-edit');
