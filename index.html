@@ -989,14 +989,9 @@ function renderFixed() {
     : fs.map(f=>{
         const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
         const done=ex&&ex.done;
-        let statusHtml = '';
-        if (f.active === false) {
-          statusHtml = `<span class="badge b-gray">已停用</span>`;
-        } else if (done) {
-          statusHtml = `<span class="badge b-green">✓ 本月已繳款 (${ex.date})</span>`;
-        } else {
-          statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
-        }
+        const statusHtml = done
+          ? `<span class="badge b-green">✓ 已繳款 (${ex.date})</span>`
+          : `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
         return `<tr>
           <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
           <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
@@ -1004,9 +999,8 @@ function renderFixed() {
           <td style="color:var(--t2)">${f.day?f.day+'號':'-'}</td>
           <td>${statusHtml}</td>
           <td><div class="flex g2i">
-            <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯/補傳照片">✏️</button>
-            <button class="btn btn-sec btn-icon btn-sm" onclick="togFix('${f.id}')">${f.active!==false?'⏸':'▶️'}</button>
-            <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')">🗑</button>
+            <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯項目">✏️</button>
+            <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')" title="刪除項目">🗑</button>
           </div></td>
         </tr>`;
       }).join('');
