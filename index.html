@@ -281,7 +281,8 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         &nbsp;&nbsp;data JSONB NOT NULL DEFAULT '{}'::jsonb,<br>
         &nbsp;&nbsp;updated_at TIMESTAMPTZ DEFAULT NOW()<br>
         );<br>
-        ALTER TABLE rooms DISABLE ROW LEVEL SECURITY;
+        ALTER TABLE rooms DISABLE ROW LEVEL SECURITY;<br>
+        CREATE POLICY "Allow anon all" ON rooms FOR ALL TO public USING (true) WITH CHECK (true);
       </div>
     </div>
     <div class="fg">
@@ -1967,10 +1968,10 @@ async function step2() {
     if (!window.supabase) return toast('Supabase SDK 未成功載入，請確認網路連線', 'error');
     const cleanUrl = sanitizeSupabaseUrl(_supabaseUrl);
     const tmpClient = supabase.createClient(cleanUrl, _supabaseKey);
-    const { data, error } = await tmpClient.from('rooms').select('data').eq('room_code', _room).single();
+    const { data, error } = await tmpClient.from('rooms').select('data').eq('room_code', _room).maybeSingle();
 
     let roomData = null;
-    if (error && error.code === 'PGRST116') {
+    if (!data) {
       const ms = {};
       const m1 = gid(), m2 = gid();
       ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
@@ -1996,7 +1997,7 @@ async function step2() {
     } else if (data && data.data) {
       roomData = data.data;
     } else if (error) {
-      return toast('連線失敗：' + error.message + '（請確認是否有在 Supabase SQL Editor 執行建表指令）', 'error');
+      return toast('連線失敗：' + error.message, 'error');
     }
 
     D = roomData || D;
