@@ -1727,14 +1727,11 @@ async function submitTxEdit() {
 
 // --- Identity ---
 function openIdentity(){
-  document.getElementById('id-list').innerHTML=mems().map(m=>`
-    <div class="member-opt ${CFG.currentMemberId===m.id?'selected':''}" onclick="switchId('${m.id}')">
-      <div style="width:34px;height:34px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900">${(m.name||'?')[0]}</div>
-      <div><div style="font-size:14px;font-weight:700">${m.name}</div>${CFG.currentMemberId===m.id?'<div style="font-size:11px;color:var(--green)">✓ 目前身份</div>':''}</div>
-    </div>`).join('');
+  fillLoginSelect('login-mid-sel');
+  const elPass = document.getElementById('login-pass-input');
+  if (elPass) elPass.value = '';
   openM('mo-id');
 }
-function switchId(id){CFG.currentMemberId=id;localStorage.setItem(LK,JSON.stringify(CFG));closeM('mo-id');document.getElementById('sb-name').textContent=mName(id);toast('已切換為 '+mName(id),'info');}
 
 // ═══════════════════════════════════════════════
 //  CHARTS
