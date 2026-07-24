@@ -281,6 +281,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         &nbsp;&nbsp;data JSONB NOT NULL DEFAULT '{}'::jsonb,<br>
         &nbsp;&nbsp;updated_at TIMESTAMPTZ DEFAULT NOW()<br>
         );<br>
+        ALTER TABLE rooms DISABLE ROW LEVEL SECURITY;<br>
         ALTER PUBLICATION supabase_realtime ADD TABLE rooms;
       </div>
     </div>
@@ -1988,7 +1989,10 @@ async function step2() {
       };
       const { error: upsertErr } = await tmpClient.from('rooms').upsert({ room_code: _room, data: roomData, updated_at: new Date().toISOString() });
       if (upsertErr) {
-        return toast('建房失敗：' + upsertErr.message + '（請確認是否有在 Supabase SQL Editor 執行建表指令）', 'error');
+        if (upsertErr.message && upsertErr.message.includes('row-level security')) {
+          return toast('請在 Supabase SQL Editor 執行：ALTER TABLE rooms DISABLE ROW LEVEL SECURITY;', 'error');
+        }
+        return toast('建房失敗：' + upsertErr.message + '（請確認 Supabase SQL Editor 是否已執行建表指令）', 'error');
       }
     } else if (data && data.data) {
       roomData = data.data;
