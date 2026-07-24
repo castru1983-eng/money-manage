@@ -505,14 +505,17 @@ textarea.fc{resize:vertical;min-height:90px;}
   <div class="md">
     <div class="mh"><div class="mt" id="fix-mtitle">新增固定支出</div><button class="mc" onclick="closeM('mo-fixed')">✕</button></div>
     <input type="hidden" id="fix-eid"/>
-    <div class="fg"><label class="fl">項目名稱</label><input type="text" class="fc" id="fix-name" placeholder="例如：房租、水電費..."/></div>
     <div class="fr">
+      <div class="fg"><label class="fl">項目名稱</label><select class="fc" id="fix-name" onchange="document.getElementById('fix-cat').value=this.value"></select></div>
       <div class="fg"><label class="fl">類別</label><select class="fc" id="fix-cat"></select></div>
-      <div class="fg"><label class="fl">地點 / 場所 (P2/P3/宿舍)</label><select class="fc" id="fix-loc"></select></div>
     </div>
     <div class="fr">
+      <div class="fg"><label class="fl">地點 / 場所 (P2/P3/宿舍)</label><select class="fc" id="fix-loc"></select></div>
       <div class="fg"><label class="fl">每月金額 (NT$)</label><input type="number" class="fc" id="fix-amt" placeholder="0" min="1"/></div>
+    </div>
+    <div class="fr">
       <div class="fg"><label class="fl">每月幾號扣款</label><input type="number" class="fc" id="fix-day" placeholder="1~31" min="1" max="31"/></div>
+      <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="fix-note" placeholder="例如：7月份電費單據說明..."/></div>
     </div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 單據範本 (選填)</label>
@@ -582,16 +585,18 @@ textarea.fc{resize:vertical;min-height:90px;}
   <div class="md">
     <div class="mh"><div class="mt">✏️ 編輯交易紀錄 / 補傳照片</div><button class="mc" onclick="closeM('mo-tx-edit')">✕</button></div>
     <input type="hidden" id="txe-id"/>
-    <div class="fg"><label class="fl">項目名稱</label><input type="text" class="fc" id="txe-name"/></div>
     <div class="fr">
+      <div class="fg"><label class="fl">項目名稱</label><select class="fc" id="txe-name" onchange="document.getElementById('txe-cat').value=this.value"></select></div>
       <div class="fg"><label class="fl">類別</label><select class="fc" id="txe-cat"></select></div>
-      <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="txe-loc"></select></div>
     </div>
     <div class="fr">
+      <div class="fg"><label class="fl">地點 / 場所</label><select class="fc" id="txe-loc"></select></div>
       <div class="fg"><label class="fl">金額 (NT$)</label><input type="number" class="fc" id="txe-amt" placeholder="0" min="1"/></div>
-      <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="txe-date"/></div>
     </div>
-    <div class="fg"><label class="fl">相關/經手人員</label><select class="fc" id="txe-paid"><option value="">不指定</option></select></div>
+    <div class="fr">
+      <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="txe-date"/></div>
+      <div class="fg"><label class="fl">相關/經手人員</label><select class="fc" id="txe-paid"><option value="">不指定</option></select></div>
+    </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="txe-note" placeholder="選填..."/></div>
     <div class="fg">
       <label class="fl">📷 上傳照片 / 發票憑證 (選填)</label>
@@ -1124,6 +1129,7 @@ async function submitDeposit(){
 
 // --- Fixed ---
 function openFixed(eid){
+  fillCats('fix-name');
   fillCats('fix-cat');
   fillLocs('fix-loc', false);
   const isE=!!eid;
@@ -1132,8 +1138,8 @@ function openFixed(eid){
   if(isE){
     const f=D.fixedItems[eid];
     if(f){
-      document.getElementById('fix-name').value=f.name||'';
-      document.getElementById('fix-cat').value=f.category||'';
+      document.getElementById('fix-name').value=f.name||D.categories[0];
+      document.getElementById('fix-cat').value=f.category||D.categories[0];
       document.getElementById('fix-loc').value=f.location||'P2';
       document.getElementById('fix-amt').value=f.amount||'';
       document.getElementById('fix-day').value=f.day||'';
@@ -1141,14 +1147,14 @@ function openFixed(eid){
       setPhotoPreview(f.photo, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-img');
     }
   } else {
-    ['fix-name','fix-amt','fix-day','fix-note'].forEach(i=>document.getElementById(i).value='');
+    ['fix-amt','fix-day','fix-note'].forEach(i=>document.getElementById(i).value='');
     clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val');
   }
   openM('mo-fixed');
 }
 async function submitFixed(){
-  const name=document.getElementById('fix-name').value.trim(), cat=document.getElementById('fix-cat').value, loc=document.getElementById('fix-loc').value||'P2', amt=parseFloat(document.getElementById('fix-amt').value), day=parseInt(document.getElementById('fix-day').value)||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
-  if(!name)return toast('請輸入項目名稱','error');
+  const name=document.getElementById('fix-name').value, cat=document.getElementById('fix-cat').value, loc=document.getElementById('fix-loc').value||'P2', amt=parseFloat(document.getElementById('fix-amt').value), day=parseInt(document.getElementById('fix-day').value)||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
+  if(!name)return toast('請選擇項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
   const data={name,category:cat,location:loc,amount:amt,day,note,photo:photo||null};
@@ -1218,12 +1224,13 @@ async function submitExec(){
 function openTxEdit(txId) {
   const t = D.transactions[txId];
   if (!t) return;
+  fillCats('txe-name');
   fillCats('txe-cat');
   fillLocs('txe-loc', '不指定');
   fillMems('txe-paid', true);
   document.getElementById('txe-id').value = txId;
-  document.getElementById('txe-name').value = t.name || '';
-  document.getElementById('txe-cat').value = t.category || '';
+  document.getElementById('txe-name').value = t.name || D.categories[0];
+  document.getElementById('txe-cat').value = t.category || D.categories[0];
   document.getElementById('txe-loc').value = t.location || '';
   document.getElementById('txe-amt').value = t.amount || '';
   document.getElementById('txe-date').value = t.date || tod();
