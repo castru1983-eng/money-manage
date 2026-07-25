@@ -1062,16 +1062,19 @@ function renderDash() {
   const elBtnFunds = document.getElementById('btn-funds');
   if (elBtnFunds) elBtnFunds.style.display = isAdm ? 'inline-flex' : 'none';
 
-  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const elDashDate = document.getElementById('dash-date');
+  if (elDashDate) elDashDate.textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
   const m = mon();
   const mt = txs().filter(t=>t.date.startsWith(m));
   const inc = mt.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
   const exp = mt.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
   const fixTot = fixes().filter(f=>f.active!==false).reduce((s,f)=>s+(f.amount||0),0);
-  document.getElementById('h-bal').textContent = fmt(D.balance);
-  document.getElementById('h-exp').textContent = fmt(exp);
-  document.getElementById('h-inc').textContent = fmt(inc);
-  document.getElementById('h-fix').textContent = fmt(fixTot);
+
+  const elHBal = document.getElementById('h-bal'); if (elHBal) elHBal.textContent = fmt(D.balance);
+  const elHExp = document.getElementById('h-exp'); if (elHExp) elHExp.textContent = fmt(exp);
+  const elHInc = document.getElementById('h-inc'); if (elHInc) elHInc.textContent = fmt(inc);
+  const elHFix = document.getElementById('h-fix'); if (elHFix) elHFix.textContent = fmt(fixTot);
+
   const unpaidFixTot = fixes().filter(f => f.active !== false && !execs().find(e => e.fixedId === f.id && e.month === m && e.done)).reduce((s, f) => s + (f.amount || 0), 0);
   const elSc1 = document.getElementById('sc1'); if (elSc1) elSc1.textContent = fmt(Math.max(0, D.balance - unpaidFixTot));
   const elSc2 = document.getElementById('sc2'); if (elSc2) elSc2.textContent = fmt(inc);
@@ -1079,33 +1082,39 @@ function renderDash() {
   const elSc4 = document.getElementById('sc4'); if (elSc4) elSc4.textContent = fixes().filter(f=>f.active!==false).length;
 
   const rec = txs().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,6);
-  document.getElementById('recent-tx').innerHTML = rec.length===0
-    ? `<div class="empty"><div class="empty-icon">📭</div><p>尚無交易紀錄</p></div>`
-    : rec.map(t=>`<div class="tx-item">
-        <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
-        <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
-        ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
-        ${isAdm ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>` : ''}
-        <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
-      </div>`).join('');
+  const elRecentTx = document.getElementById('recent-tx');
+  if (elRecentTx) {
+    elRecentTx.innerHTML = rec.length===0
+      ? `<div class="empty"><div class="empty-icon">📭</div><p>尚無交易紀錄</p></div>`
+      : rec.map(t=>`<div class="tx-item">
+          <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
+          <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
+          ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
+          ${isAdm ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>` : ''}
+          <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
+        </div>`).join('');
+  }
 
   const catMap={};
   mt.filter(t=>t.type==='out').forEach(t=>{const c=t.name||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
   makePie('ch-dash',catMap,210);
 
   const af = fixes().filter(f=>f.active!==false);
-  document.getElementById('fix-prog').innerHTML = af.length===0
-    ? `<div class="empty" style="padding:20px"><p>尚未設定固定支出</p></div>`
-    : af.map(f=>{
-        const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
-        const done=ex&&ex.done;
-        return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.dayDate?f.dayDate+'截止':(f.day?f.day+'號前截止':'-')}</div></div>
-          <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
-          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`:
-          (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`)}
-        </div>`;
-      }).join('');
+  const elFixProg = document.getElementById('fix-prog');
+  if (elFixProg) {
+    elFixProg.innerHTML = af.length===0
+      ? `<div class="empty" style="padding:20px"><p>尚未設定固定支出</p></div>`
+      : af.map(f=>{
+          const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
+          const done=ex&&ex.done;
+          return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
+            <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.dayDate?f.dayDate+'截止':(f.day?f.day+'號前截止':'-')}</div></div>
+            <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
+            ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${d.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`:
+            (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`)}
+          </div>`;
+        }).join('');
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1200,98 +1209,67 @@ function renderFixed() {
   const alertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
   const today = new Date(); today.setHours(0,0,0,0);
 
-  document.getElementById('fix-tbody').innerHTML = fs.length===0
-    ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
-    : fs.map(f=>{
-        const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
-        const done=ex&&ex.done;
-        let statusHtml = '';
-        if (done) {
-          statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date})</span>`;
-        } else {
-          if (!isAdm) {
-            statusHtml = `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`;
-          } else {
-            let diffDays = 999;
-            if (f.dayDate && f.dayDate.includes('-')) {
-              const parts = f.dayDate.split('-');
-              const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-              targetDate.setHours(0,0,0,0);
-              diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
-            } else if (f.day) {
-              const targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
-              targetDate.setHours(0,0,0,0);
-              diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
-            }
+  function renderFixed() {
+  updateNavBadges();
+  const isAdm = isAdmin();
+  const elExecAll = document.getElementById('btn-exec-all');
+  if (elExecAll) elExecAll.style.display = isAdm ? 'inline-flex' : 'none';
+  const elAddFix = document.getElementById('btn-add-fix');
+  if (elAddFix) elAddFix.style.display = isAdm ? 'inline-flex' : 'none';
 
-            if (diffDays < 0) {
-              statusHtml = `<button class="btn btn-d btn-sm" onclick="openExec('${f.id}')" title="已超過繳款期限">🚨 已逾期 (${Math.abs(diffDays)}天)</button>`;
-            } else if (diffDays <= alertDays) {
-              statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}')">⚠️ 剩 ${diffDays === 0 ? '今天' : diffDays + ' 天'}到期</button>`;
+  const fs=fixes();
+  const m=mon();
+  const alertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  const elFixTbody = document.getElementById('fix-tbody');
+  if (elFixTbody) {
+    elFixTbody.innerHTML = fs.length===0
+      ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
+      : fs.map(f=>{
+          const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
+          const done=ex&&ex.done;
+          let statusHtml = '';
+          if (done) {
+            statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date})</span>`;
+          } else {
+            if (!isAdm) {
+              statusHtml = `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`;
             } else {
-              statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+              let diffDays = 999;
+              if (f.dayDate && f.dayDate.includes('-')) {
+                const parts = f.dayDate.split('-');
+                const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+                targetDate.setHours(0,0,0,0);
+                diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+              } else if (f.day) {
+                const targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
+                targetDate.setHours(0,0,0,0);
+                diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+              }
+
+              if (diffDays < 0) {
+                statusHtml = `<button class="btn btn-d btn-sm" onclick="openExec('${f.id}')" title="已超過繳款期限">🚨 已逾期 (${Math.abs(diffDays)}天)</button>`;
+              } else if (diffDays <= alertDays) {
+                statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}')">⚠️ 剩 ${diffDays === 0 ? '今天' : diffDays + ' 天'}到期</button>`;
+              } else {
+                statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+              }
             }
           }
-        }
-        return `<tr>
-          <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
-          <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
-          <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
-          <td style="color:var(--t2)">${f.dayDate ? f.dayDate + ' 截止' : (f.day ? '每月 ' + f.day + ' 號前' : '-')}</td>
-          <td>${statusHtml}</td>
-          <td>${isAdm ? `<div class="flex g2i">
-            <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯項目">✏️</button>
-            <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')" title="刪除項目">🗑</button>
-          </div>` : '<span style="color:var(--t3);font-size:12px">僅供檢視</span>'}</td>
-        </tr>`;
-      }).join('');
-}
-
-async function delFix(id) {
-  const f = D.fixedItems[id];
-  if (!f) return;
-  if (!confirm(`確定要刪除固定支出項目「${f.name}」？\n此動作將同時清除此項目的歷史扣款紀錄，並將已扣除金額退回共用金！`)) return;
-
-  try {
-    const relatedExecs = execs().filter(e => e.fixedId === id);
-    let totalRefund = 0;
-
-    for (const ex of relatedExecs) {
-      if (ex.done) {
-        const amt = typeof ex.amount === 'number' ? ex.amount : (f.amount || 0);
-        totalRefund += amt;
-      }
-      await rRef.child('fixedExecutions/' + ex.id).remove();
-
-      const tx = txs().find(t => t.ref === ex.id);
-      if (tx) {
-        await rRef.child('transactions/' + tx.id).remove();
-      }
-    }
-
-    if (totalRefund > 0) {
-      await rRef.child('balance').transaction(b => (b || 0) + totalRefund);
-    }
-
-    await rRef.child('fixedItems/' + id).remove();
-    toast(`已刪除固定支出「${f.name}」，帳目明細紀錄已同步清除${totalRefund > 0 ? `（金額已退回 NT$${fmt(totalRefund)}）` : ''}`, 'info');
-  } catch (e) {
-    toast('刪除失敗：' + e.message, 'error');
+          return `<tr>
+            <td style="font-weight:700">${f.name}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
+            <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
+            <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
+            <td style="color:var(--t2)">${f.dayDate ? f.dayDate + ' 截止' : (f.day ? '每月 ' + f.day + ' 號前' : '-')}</td>
+            <td>${statusHtml}</td>
+            <td>${isAdm ? `<div class="flex g2i">
+              <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯項目">✏️</button>
+              <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')" title="刪除項目">🗑</button>
+            </div>` : '<span style="color:var(--t3);font-size:12px">僅供檢視</span>'}</td>
+          </tr>`;
+        }).join('');
   }
-}
-
-async function delExec(exId) {
-  const ex = D.fixedExecutions[exId]; if (!ex) return;
-  const f = D.fixedItems[ex.fixedId];
-  const amt = typeof ex.amount==='number'?ex.amount:(f ? f.amount : 0);
-  if (!confirm(`確定取消並刪除此筆扣款紀錄？（金額 NT$${fmt(amt)} 將自動退回餘額）`)) return;
-  try {
-    await rRef.child('balance').transaction(b => (b || 0) + amt);
-    await rRef.child('fixedExecutions/' + exId).remove();
-    const tx = txs().find(t => t.ref === exId);
-    if (tx) await rRef.child('transactions/' + tx.id).remove();
-    toast(`已取消扣款，NT$${fmt(amt)} 已退回共用金餘額`, 'info');
-  } catch (e) { toast('刪除失敗：' + e.message, 'error'); }
 }
 
 async function execAllPendingFixed() {
@@ -1336,8 +1314,16 @@ async function execAllPendingFixed() {
 // ═══════════════════════════════════════════════
 function renderLedger() {
   fillLocs('lf-l', '所有地點');
-  const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, lF=document.getElementById('lf-l').value, sF=document.getElementById('lf-s').value.toLowerCase();
-  let list=txs().map(t => {
+  const moEl = document.getElementById('lf-mo');
+  const tEl = document.getElementById('lf-t');
+  const lEl = document.getElementById('lf-l');
+  const sEl = document.getElementById('lf-s');
+  const moF = moEl ? moEl.value : '';
+  const tF = tEl ? tEl.value : '';
+  const lF = lEl ? lEl.value : '';
+  const sF = sEl ? sEl.value.toLowerCase() : '';
+
+  let list = txs().map(t => {
     if (t.ref && D.fixedExecutions[t.ref]) {
       const ex = D.fixedExecutions[t.ref];
       const f = D.fixedItems[ex.fixedId];
@@ -1348,109 +1334,155 @@ function renderLedger() {
       };
     }
     return t;
-  }).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
-  if(moF)list=list.filter(t=>t.date.startsWith(moF));
-  if(tF)list=list.filter(t=>t.type===tF);
-  if(lF)list=list.filter(t=>t.location===lF);
-  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF));
-  document.getElementById('led-tbody').innerHTML=list.length===0
-    ?`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
-    :list.map(t=>`<tr>
-        <td>${t.date}</td>
-        <td><span class="badge ${t.type==='in'?'b-green':'b-red'}">${t.type==='in'?'收入':'支出'}</span></td>
-        <td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}</td>
-        <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
-        <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
-        <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
-        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span>${isAdmin() ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button>` : ''}</div></td>
-      </tr>`).join('');
-  const ti=list.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
-  const to=list.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
-  document.getElementById('led-sum').innerHTML=`
-    <span style="color:var(--green);font-weight:800;font-size:13px">收入：NT$${fmt(ti)}</span>
-    <span style="color:var(--red);font-weight:800;font-size:13px">支出：NT$${fmt(to)}</span>
-    <span style="color:var(--t2);font-size:13px">淨額：<span style="color:${ti-to>=0?'var(--green)':'var(--red)'};font-weight:900">NT$${fmt(ti-to)}</span></span>`;
-}
+  }).sort((a,b) => b.date.localeCompare(a.date) || (b.createdAt||0) - (a.createdAt||0));
 
-async function delTx(txId) {
-  if (!isAdmin()) return toast('權限不足：僅管理者可刪除交易紀錄', 'error');
-  const t = D.transactions[txId]; if (!t) return;
-  if (!confirm(`確定刪除「${t.name}」NT$${fmt(t.amount)} 這筆紀錄？\n系統將自動調整共用金餘額！`)) return;
-  try {
-    const isInc = t.type === 'in';
-    const balChange = isInc ? -t.amount : t.amount;
-    if ((D.balance || 0) + balChange < 0 && balChange < 0) return toast('餘額不足，無法刪除此筆收入紀錄！', 'error');
-    D.balance = (D.balance || 0) + balChange;
-    delete D.transactions[txId];
-    if (t.ref) {
-      if (D.deposits[t.ref]) delete D.deposits[t.ref];
-      if (D.fixedExecutions[t.ref]) delete D.fixedExecutions[t.ref];
-    }
-    toast(`已刪除紀錄，金額 NT$${fmt(t.amount)} 已${isInc ? '從餘額扣除' : '自動退回共用金餘額'}`, 'info');
-    await saveData();
-  } catch (e) { toast('刪除失敗：' + e.message, 'error'); }
-}
+  if (moF) list = list.filter(t => t.date.startsWith(moF));
+  if (tF) list = list.filter(t => t.type === tF);
+  if (lF) list = list.filter(t => t.location === lF);
+  if (sF) list = list.filter(t => (t.name||'').toLowerCase().includes(sF) || (t.location||'').toLowerCase().includes(sF));
 
-async function delFix(id) {
-  if (!isAdmin()) return toast('權限不足：僅管理者可刪除固定支出', 'error');
-  const f = D.fixedItems[id];
-  if (!f) return toast('找不到該固定支出項目', 'error');
-  if (!confirm(`確定要刪除固定支出「${f.name}」？\n刪除將自動連帶刪除歷來扣款紀錄，並將金額退回共用金！`)) return;
+  const elLedTbody = document.getElementById('led-tbody');
+  if (elLedTbody) {
+    elLedTbody.innerHTML = list.length === 0
+      ? `<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
+      : list.map(t => `<tr>
+          <td>${t.date}</td>
+          <td><span class="badge ${t.type==='in'?'b-green':'b-red'}">${t.type==='in'?'收入':'支出'}</span></td>
+          <td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}</td>
+          <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
+          <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
+          <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
+          <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span>${isAdmin() ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button>` : ''}</div></td>
+        </tr>`).join('');
+  }
 
-  try {
-    const relatedExecs = execs().filter(e => e.fixedId === id);
-    let totalRefund = 0;
+  const ti = list.filter(t => t.type==='in').reduce((s,t) => s + t.amount, 0);
+  const to = list.filter(t => t.type==='out').reduce((s,t) => s + t.amount, 0);
+  const elLedSum = document.getElementById('led-sum');
+  if (elLedSum) {
+    elLedSum.innerHTML = `
+      <span style="color:var(--green);font-weight:800;font-size:13px">收入：NT$${fmt(ti)}</span>
+      <span style="color:var(--red);font-weight:800;font-size:13px">支出：NT$${fmt(to)}</span>
+      <span style="color:var(--t2);font-size:13px">淨額：<span style="color:${ti-to>=0?'var(--green)':'var(--red)'};font-weight:900">NT$${fmt(ti-to)}</span></span>`;
+  }
+// ═══════════════════════════════════════════════
+//  REPORT
+// ═══════════════════════════════════════════════
+function renderReport() {
+  const el = document.getElementById('rpt-mo');
+  if (!el) return;
+  if (!el.value) el.value = mon();
+  const m = el.value;
+  const mt=txs().filter(t=>t.date.startsWith(m));
+  const inc=mt.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
+  const exp=mt.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
+  const fexp=execs().filter(e=>e.month===m&&e.done).reduce((s,e)=>{const f=D.fixedItems[e.fixedId];return s+(f?f.amount:0);},0);
+  const elRptStats = document.getElementById('rpt-stats');
+  if (elRptStats) {
+    elRptStats.innerHTML=`
+      <div class="sc green"><div class="sc-icon">💰</div><div class="sc-label">總收入</div><div class="sc-val green">NT$${fmt(inc)}</div></div>
+      <div class="sc amber"><div class="sc-icon">📤</div><div class="sc-label">總支出</div><div class="sc-val amber">NT$${fmt(exp)}</div></div>
+      <div class="sc blue"><div class="sc-icon">📋</div><div class="sc-label">固定支出扣款</div><div class="sc-val blue">NT$${fmt(fexp)}</div></div>
+      <div class="sc violet"><div class="sc-icon">📊</div><div class="sc-label">淨收支結餘</div><div class="sc-val violet">NT$${fmt(inc-exp)}</div></div>`;
+  }
 
-    for (const ex of relatedExecs) {
-      if (ex.done) {
-        const amt = typeof ex.amount === 'number' ? ex.amount : (f.amount || 0);
-        totalRefund += amt;
-      }
-      delete D.fixedExecutions[ex.id];
-      const tx = txs().find(t => t.ref === ex.id);
-      if (tx) delete D.transactions[tx.id];
-    }
+  const catMap={};
+  mt.filter(t=>t.type==='out').forEach(t=>{const c=t.name||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
+  makePie('ch-pie',catMap,250);
 
-    if (totalRefund > 0) D.balance = (D.balance || 0) + totalRefund;
-    delete D.fixedItems[id];
-    toast(`已刪除「${f.name}」，明細紀錄已連帶清除${totalRefund > 0 ? `（金額已退回 NT$${fmt(totalRefund)}）` : ''}`, 'info');
-    await saveData();
-  } catch (e) {
-    toast('刪除失敗：' + e.message, 'error');
+  const locMap={};
+  mt.filter(t=>t.type==='out').forEach(t=>{const l=t.location||'未指定';locMap[l]=(locMap[l]||0)+t.amount;});
+  makePie('ch-loc',locMap,250);
+
+  makeLine('ch-line',m);
+
+  const out=mt.filter(t=>t.type==='out').sort((a,b)=>b.date.localeCompare(a.date));
+  const elRptTbody = document.getElementById('rpt-tbody');
+  if (elRptTbody) {
+    elRptTbody.innerHTML=out.length===0
+      ?`<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:18px">無支出</td></tr>`
+      :out.map(t=>`<tr>
+          <td>${t.date}</td><td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:1px 5px;font-size:11px;margin-left:4px">✏️</button></td>
+          <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
+          <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
+          <td style="font-weight:900;color:var(--red)">NT$${fmt(t.amount)}</td>
+        </tr>`).join('');
   }
 }
 
-async function delExec(exId) {
-  if (!isAdmin()) return toast('權限不足：僅管理者可刪除扣款紀錄', 'error');
-  const ex = D.fixedExecutions[exId];
-  if (!ex) return toast('找不到該筆扣款紀錄', 'error');
-  const f = D.fixedItems[ex.fixedId];
-  const amt = typeof ex.amount === 'number' ? ex.amount : (f ? f.amount : 0);
-  if (!confirm(`確定要取消並刪除此筆扣款紀錄？\n已扣金額 NT$${fmt(amt)} 將自動退回共用金餘額！`)) return;
+// ═══════════════════════════════════════════════
+//  SETTINGS
+// ═══════════════════════════════════════════════
+function renderSettings() {
+  const isAdm = isAdmin();
+  const elAddMem = document.getElementById('set-add-mem-wrap');
+  if (elAddMem) elAddMem.style.display = isAdm ? 'block' : 'none';
 
-  try {
-    D.balance = (D.balance || 0) + amt;
-    delete D.fixedExecutions[exId];
-    const tx = txs().find(t => t.ref === exId);
-    if (tx) delete D.transactions[tx.id];
-    toast(`已取消扣款，NT$${fmt(amt)} 已退回共用金餘額，帳目明細已同步刪除`, 'info');
-    await saveData();
-  } catch (e) {
-    toast('刪除失敗：' + e.message, 'error');
+  const elSetMems = document.getElementById('set-members');
+  if (elSetMems) {
+    elSetMems.innerHTML = mems().map(m => `
+      <div class="card" style="padding:14px;margin-bottom:10px;background:rgba(255,255,255,.02)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="flex ic g2i">
+            <div style="width:28px;height:28px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px">${(m.name||'?')[0]}</div>
+            <input class="inline-edit" value="${m.name}" ${isAdm ? `onchange="renMem('${m.id}',this.value)"` : 'disabled'} style="font-weight:800"/>
+          </div>
+          <div class="flex ic g2i">
+            <input type="color" value="${m.color}" ${isAdm ? `onchange="chColor('${m.id}',this.value)"` : 'disabled'} style="width:24px;height:24px;border:none;background:none;cursor:pointer;border-radius:50%;padding:0"/>
+            ${isAdm && mems().length > 1 ? `<button class="btn btn-d btn-icon btn-sm" onclick="delMem('${m.id}')">🗑</button>` : ''}
+          </div>
+        </div>
+        <div class="fr" style="gap:8px">
+          <div>
+            <label class="fl" style="font-size:10px">帳號</label>
+            <input type="text" class="fc" value="${m.username||''}" ${isAdm ? `onchange="chUser('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+          </div>
+          <div>
+            <label class="fl" style="font-size:10px">密碼</label>
+            <input type="text" class="fc" value="${m.password||''}" ${isAdm ? `onchange="chPass('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <label class="fl" style="font-size:10px">權限角色</label>
+          <select class="fc" ${isAdm ? `onchange="chRole('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px">
+            <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>👑 管理者 (可完整編輯、扣款與管理)</option>
+            <option value="user" ${m.role === 'user' ? 'selected' : ''}>👤 一般使用者 (僅供檢視)</option>
+          </select>
+        </div>
+      </div>`).join('');
   }
-}
 
-async function delDeposit(did) {
-  if (!isAdmin()) return toast('權限不足：僅管理者可刪除繳款紀錄', 'error');
-  const d = D.deposits[did];
-  if (!d) return toast('找不到該筆繳款紀錄', 'error');
-  if (!confirm(`確定要刪除「${mName(d.memberId)}」繳款 NT$${fmt(d.amount)} 的紀錄？\n系統將自動從共用金扣除該金額！`)) return;
+  const elSetCats = document.getElementById('set-cats');
+  if (elSetCats) {
+    elSetCats.innerHTML = D.categories.map((c, i) => `
+      <div class="srow">
+        <span style="font-size:13px">${catIcon(c)} ${c}</span>
+        ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delCat(${i})">🗑</button>` : ''}
+      </div>`).join('');
+  }
 
-  try {
-    if ((D.balance || 0) - d.amount < 0) return toast('餘額不足，無法刪除此筆繳款紀錄！', 'error');
-    D.balance = (D.balance || 0) - d.amount;
-    delete D.deposits[did];
-    const tx = txs().find(t => t.ref === did);
+  const elSetLocs = document.getElementById('set-locs');
+  if (elSetLocs) {
+    elSetLocs.innerHTML = (D.locations || DEF_LOCS).map((loc, i) => `
+      <div class="srow">
+        <span style="font-size:13px">📍 ${loc}</span>
+        ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delLoc(${i})">🗑</button>` : ''}
+      </div>`).join('');
+  }
+
+  const elInfoRoom = document.getElementById('info-room');
+  if (elInfoRoom) elInfoRoom.textContent = CFG.roomCode;
+
+  const elInfoMe = document.getElementById('info-me');
+  if (elInfoMe) elInfoMe.textContent = mName(CFG.currentMemberId) + (isAdm ? ' (👑 管理者)' : ' (👤 一般使用者)');
+
+  const curAlertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
+  const elDays = document.getElementById('set-alert-days');
+  if (elDays) {
+    elDays.value = curAlertDays;
+    elDays.disabled = !isAdm;
+  }
+}ef === did);
     if (tx) delete D.transactions[tx.id];
     toast(`已刪除繳款紀錄，金額 NT$${fmt(d.amount)} 已從餘額扣除`, 'info');
     await saveData();
