@@ -270,7 +270,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     <div style="margin-bottom:14px" id="s-role-preview"></div>
     <div class="fg">
       <label class="fl">輸入密碼</label>
-      <input type="password" class="fc" id="s-pass-input" placeholder="預設管理者密碼：admin888 / 一般使用者：user123"/>
+      <input type="password" class="fc" id="s-pass-input" placeholder="請輸入密碼..."/>
     </div>
     <button class="btn btn-p" style="width:100%;padding:13px;font-size:15px" onclick="step3()">🔑 登入進入系統 ✓</button>
   </div>
@@ -1995,8 +1995,8 @@ function onLoginSelChange(mid, prevId = 'login-role-preview') {
 
   const passInputId = prevId === 's-role-preview' ? 's-pass-input' : 'login-pass-input';
   const elPass = document.getElementById(passInputId);
-  if (elPass && m && m.password) {
-    elPass.value = m.password;
+  if (elPass) {
+    elPass.value = '';
   }
 }
 
@@ -2237,7 +2237,7 @@ function step3() {
   const m = D.members[mid];
   if (!m) return toast('請選擇成員', 'error');
   if (m.password && pass !== m.password) {
-    return toast('密碼錯誤！請重新輸入（預設管理者密碼：admin888 / 一般使用者：user123）', 'error');
+    return toast('密碼錯誤！請重新輸入', 'error');
   }
 
   CFG = {
