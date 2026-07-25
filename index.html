@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 :root{
@@ -2179,7 +2180,7 @@ async function step2() {
   const btnNext = document.querySelector('#ss2 .btn-p');
   if (btnNext) {
     btnNext.disabled = true;
-    btnNext.textContent = '⏳ 連線中...';
+    btnNext.textContent = '⏳ 開啟系統中...';
   }
 
   let room = document.getElementById('s-room').value.trim();
@@ -2200,62 +2201,62 @@ async function step2() {
   if (!_supabaseUrl) _supabaseUrl = DEF_SUPABASE_URL;
   if (!_supabaseKey) _supabaseKey = DEF_SUPABASE_KEY;
 
-  try {
-    const cleanUrl = sanitizeSupabaseUrl(_supabaseUrl);
-    const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
-    if (!sSDK || typeof sSDK.createClient !== 'function') {
-      if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-      return toast('Supabase SDK 未能成功載入，請重新整理網頁', 'error');
-    }
+  const cleanUrl = sanitizeSupabaseUrl(_supabaseUrl);
 
-    const tmpClient = sSDK.createClient(cleanUrl, _supabaseKey);
-    const { data } = await tmpClient.from('rooms').select('data').eq('room_code', _room).maybeSingle();
-
-    let roomData = null;
-    if (!data) {
-      const ms = {};
-      const m1 = gid(), m2 = gid();
-      ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
-      ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
-      roomData = {
-        balance: 0,
-        members: ms,
-        categories: DEF_CATS,
-        locations: DEF_LOCS,
-        transactions: {},
-        fixedItems: {},
-        fixedExecutions: {},
-        deposits: {},
-        settings: { alertDays: 3 }
-      };
-      await tmpClient.from('rooms').upsert({ room_code: _room, data: roomData, updated_at: new Date().toISOString() });
-    } else if (data && data.data) {
-      roomData = data.data;
-    }
-
-    D = roomData || D;
-    const memList = mems();
-    const defaultMember = memList.find(m => m.role === 'admin') || memList[0];
-
-    CFG = {
-      supabaseUrl: cleanUrl,
-      supabaseKey: _supabaseKey,
-      roomCode: _room,
-      currentMemberId: defaultMember ? defaultMember.id : null,
-      role: defaultMember ? defaultMember.role : 'user'
+  if (!D || !D.members || Object.keys(D.members).length === 0) {
+    const ms = {};
+    const m1 = gid(), m2 = gid();
+    ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
+    ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
+    D = {
+      balance: 0,
+      members: ms,
+      categories: DEF_CATS,
+      locations: DEF_LOCS,
+      transactions: {},
+      fixedItems: {},
+      fixedExecutions: {},
+      deposits: {},
+      settings: { alertDays: 3 }
     };
-    localStorage.setItem(LK, JSON.stringify(CFG));
-
-    if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-
-    document.getElementById('setup-screen').style.display = 'none';
-    document.getElementById('app-screen').style.display = 'flex';
-    toast(`連線成功！歡迎使用共用金管理系統`, 'success');
-    startApp();
-  } catch(e) {
-    if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-    toast('連線提示：' + e.message, 'error');
   }
+
+  const memList = mems();
+  const defaultMember = memList.find(m => m.role === 'admin') || memList[0];
+
+  CFG = {
+    supabaseUrl: cleanUrl,
+    supabaseKey: _supabaseKey,
+    roomCode: _room,
+    currentMemberId: defaultMember ? defaultMember.id : null,
+    role: defaultMember ? defaultMember.role : 'user'
+  };
+  localStorage.setItem(LK, JSON.stringify(CFG));
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
+  toast('登入成功！歡迎使用共用金管理系統', 'success');
+  renderAppUI();
+
+  setTimeout(async () => {
+    try {
+      const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+      if (sSDK && typeof sSDK.createClient === 'function') {
+        const tmpClient = sSDK.createClient(cleanUrl, _supabaseKey);
+        const { data } = await tmpClient.from('rooms').select('data').eq('room_code', _room).maybeSingle();
+        if (data && data.data) {
+          D = data.data;
+          renderAppUI();
+        } else {
+          await tmpClient.from('rooms').upsert({ room_code: _room, data: D, updated_at: new Date().toISOString() });
+        }
+        startApp();
+      }
+    } catch(e) {
+      console.warn('Background Supabase sync warning:', e);
+    }
+  }, 100);
 }
 
 function step3() {
