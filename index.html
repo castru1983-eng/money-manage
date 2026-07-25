@@ -267,9 +267,9 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     <div class="sdot" id="d3"></div>
   </div>
 
-  <div class="setup-step active" id="ss1">
+  <div class="setup-step" id="ss1">
     <div class="setup-title">連接 Supabase 資料庫</div>
-    <div class="setup-sub">輸入你的 Supabase 專案網址與 API Key，讓三人即時同步資料。<br><a href="#" onclick="toggleHelp();return false;" style="color:var(--blue)">👉 查看 3 分鐘設定與 SQL 建表教學</a></div>
+    <div class="setup-sub">預設已載入專屬 Supabase 專案設定。<br><a href="#" onclick="toggleHelp();return false;" style="color:var(--blue)">👉 查看 3 分鐘設定與 SQL 建表教學</a></div>
     <div class="help-box" id="help-box" style="display:none">
       <strong style="color:var(--t1)">Supabase 設定步驟（3 分鐘）：</strong><br>
       1. 前往 <a href="https://supabase.com" target="_blank" style="color:var(--blue)">supabase.com</a> 免費註冊專案<br>
@@ -287,16 +287,16 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     </div>
     <div class="fg">
       <label class="fl">Supabase URL (專案網址)</label>
-      <input type="text" class="fc" id="s-supabase-url" placeholder="例如：https://xyzcompany.supabase.co"/>
+      <input type="text" class="fc" id="s-supabase-url" value="https://vdrtmtqdhmeroakwwsiv.supabase.co" placeholder="例如：https://xyzcompany.supabase.co"/>
     </div>
     <div class="fg">
       <label class="fl">Supabase Anon Key (API 金鑰)</label>
-      <textarea class="fc" id="s-supabase-key" rows="4" placeholder="例如：eyJhbGciOi... (anon public Key)"></textarea>
+      <textarea class="fc" id="s-supabase-key" rows="4" placeholder="例如：eyJhbGciOi... (anon public Key)">sb_publishable_F-LXdSZKmj58_32w2vESFQ_Fjt0CHgD</textarea>
     </div>
     <button class="btn btn-p" style="width:100%" onclick="step1()">下一步 →</button>
   </div>
 
-  <div class="setup-step" id="ss2">
+  <div class="setup-step active" id="ss2">
     <div class="setup-title">設定房間代碼</div>
     <div class="setup-sub">三位使用者需輸入相同代碼才能共享資料。請自行設定一組專屬代碼（英文+數字，至少4字）。</div>
     <div class="fg">
@@ -307,7 +307,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       ⚠️ 知道此代碼的人才能存取資料，請妥善保管
     </div>
     <div class="flex g2i">
-      <button class="btn btn-sec" style="flex:1" onclick="goStep(1)">← 返回</button>
+      <button class="btn btn-sec" style="flex:1" onclick="goStep(1)">⚙️ Supabase 設定</button>
       <button class="btn btn-p" style="flex:2" onclick="step2()">下一步 →</button>
     </div>
   </div>
@@ -908,6 +908,9 @@ function viewPhoto(url) {
 // ═══════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════
+const DEF_SUPABASE_URL = "https://vdrtmtqdhmeroakwwsiv.supabase.co";
+const DEF_SUPABASE_KEY = "sb_publishable_F-LXdSZKmj58_32w2vESFQ_Fjt0CHgD";
+
 let supabaseClient = null;
 let roomSubscription = null;
 
@@ -919,7 +922,9 @@ function init() {
     const s = localStorage.getItem(LK);
     if (s) {
       CFG = JSON.parse(s);
-      if (CFG.supabaseUrl && CFG.supabaseKey && CFG.roomCode) {
+      if (!CFG.supabaseUrl) CFG.supabaseUrl = DEF_SUPABASE_URL;
+      if (!CFG.supabaseKey) CFG.supabaseKey = DEF_SUPABASE_KEY;
+      if (CFG.roomCode) {
         startApp();
         return;
       }
@@ -2042,8 +2047,20 @@ function toast(msg,type='info'){
 //  SETUP WIZARD
 // ═══════════════════════════════════════════════
 let _cfg=null, _room='', _selMem=null, _tmpDb=null;
+let _supabaseUrl = DEF_SUPABASE_URL;
+let _supabaseKey = DEF_SUPABASE_KEY;
 
-function showSetup(){document.getElementById('setup-screen').style.display='flex';document.getElementById('app-screen').style.display='none';goStep(1);}
+function showSetup(){
+  document.getElementById('setup-screen').style.display='flex';
+  document.getElementById('app-screen').style.display='none';
+  _supabaseUrl = DEF_SUPABASE_URL;
+  _supabaseKey = DEF_SUPABASE_KEY;
+  const elUrl = document.getElementById('s-supabase-url');
+  if (elUrl && !elUrl.value) elUrl.value = DEF_SUPABASE_URL;
+  const elKey = document.getElementById('s-supabase-key');
+  if (elKey && !elKey.value) elKey.value = DEF_SUPABASE_KEY;
+  goStep(2);
+}
 function toggleHelp(){const h=document.getElementById('help-box');h.style.display=h.style.display==='none'?'block':'none';}
 function goStep(n){
   document.querySelectorAll('.setup-step').forEach(el=>el.classList.remove('active'));
