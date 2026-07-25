@@ -948,10 +948,15 @@ async function saveData() {
 
 async function startApp() {
   try {
-    if (!window.supabase) return toast('Supabase SDK 未能成功載入', 'error');
-    const cleanUrl = sanitizeSupabaseUrl(CFG.supabaseUrl);
+    const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+    if (!sSDK || typeof sSDK.createClient !== 'function') {
+      return toast('Supabase SDK 未能成功載入，請重新整理網頁', 'error');
+    }
+    const cleanUrl = sanitizeSupabaseUrl(CFG.supabaseUrl || DEF_SUPABASE_URL);
+    const key = CFG.supabaseKey || DEF_SUPABASE_KEY;
     CFG.supabaseUrl = cleanUrl;
-    supabaseClient = supabase.createClient(cleanUrl, CFG.supabaseKey);
+    CFG.supabaseKey = key;
+    supabaseClient = sSDK.createClient(cleanUrl, key);
 
     const setupEl = document.getElementById('setup-screen');
     if (setupEl) setupEl.style.display = 'none';
@@ -963,39 +968,55 @@ async function startApp() {
     const rptMo = document.getElementById('rpt-mo');
     if (rptMo) rptMo.value = mon();
 
-    const { data, error } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).maybeSingle();
-    if (!data) {
-      await initRoom();
-    } else if (data && data.data) {
-      D = data.data;
+    if (CFG.roomCode) {
+      try {
+        const { data } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).maybeSingle();
+        if (!data) {
+          await initRoom();
+        } else if (data && data.data) {
+          D = data.data;
+        }
+      } catch(dbErr) {
+        console.warn('Room fetch error:', dbErr);
+      }
     }
-    listen();
+
+    renderAppUI();
+
+    try {
+      listen();
+    } catch(errListen) {
+      console.warn('Realtime listen warn:', errListen);
+    }
   } catch(e) {
-    toast('Supabase 連線失敗：' + e.message, 'error');
-    showSetup();
+    console.error('startApp catch:', e);
+    toast('連線提示：' + e.message, 'error');
   }
 }
 
 function listen() {
-  if (roomSubscription) supabaseClient.removeChannel(roomSubscription);
+  if (!supabaseClient || !CFG.roomCode) return;
+  try {
+    if (roomSubscription) supabaseClient.removeChannel(roomSubscription);
 
-  renderAppUI();
-
-  roomSubscription = supabaseClient
-    .channel('room-' + CFG.roomCode)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: 'room_code=eq.' + CFG.roomCode }, (payload) => {
-      if (payload.new && payload.new.data) {
-        D = payload.new.data;
-        renderAppUI();
-      }
-    })
-    .subscribe((status) => {
-      const ok = status === 'SUBSCRIBED';
-      const dot = document.getElementById('sync-dot');
-      if (dot) dot.className = 'sync-dot' + (ok ? '' : ' off');
-      const txt = document.getElementById('sync-txt');
-      if (txt) txt.textContent = ok ? '即時同步中 (Supabase)' : '連線中...';
-    });
+    roomSubscription = supabaseClient
+      .channel('room-' + CFG.roomCode)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: 'room_code=eq.' + CFG.roomCode }, (payload) => {
+        if (payload.new && payload.new.data) {
+          D = payload.new.data;
+          renderAppUI();
+        }
+      })
+      .subscribe((status) => {
+        const ok = status === 'SUBSCRIBED';
+        const dot = document.getElementById('sync-dot');
+        if (dot) dot.className = 'sync-dot' + (ok ? '' : ' off');
+        const txt = document.getElementById('sync-txt');
+        if (txt) txt.textContent = ok ? '即時同步中 (Supabase)' : '連線中...';
+      });
+  } catch(e) {
+    console.warn('listen warn:', e);
+  }
 }
 
 function renderAppUI() {
@@ -2158,7 +2179,7 @@ async function step2() {
   const btnNext = document.querySelector('#ss2 .btn-p');
   if (btnNext) {
     btnNext.disabled = true;
-    btnNext.textContent = '⏳ 連線登入中...';
+    btnNext.textContent = '⏳ 連線中...';
   }
 
   let room = document.getElementById('s-room').value.trim();
@@ -2179,27 +2200,16 @@ async function step2() {
   if (!_supabaseUrl) _supabaseUrl = DEF_SUPABASE_URL;
   if (!_supabaseKey) _supabaseKey = DEF_SUPABASE_KEY;
 
-  toast('連線 Supabase 資料庫中...', 'info');
-
   try {
     const cleanUrl = sanitizeSupabaseUrl(_supabaseUrl);
-    let tmpClient = null;
-
-    if (window.supabase && typeof window.supabase.createClient === 'function') {
-      tmpClient = window.supabase.createClient(cleanUrl, _supabaseKey);
-    } else if (typeof supabase !== 'undefined' && typeof supabase.createClient === 'function') {
-      tmpClient = supabase.createClient(cleanUrl, _supabaseKey);
-    } else {
+    const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+    if (!sSDK || typeof sSDK.createClient !== 'function') {
       if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-      return toast('Supabase SDK 載入中，請稍候重試', 'error');
+      return toast('Supabase SDK 未能成功載入，請重新整理網頁', 'error');
     }
 
-    const { data, error } = await tmpClient.from('rooms').select('data').eq('room_code', _room).maybeSingle();
-
-    if (error) {
-      if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-      return toast('Supabase 查詢失敗：' + error.message, 'error');
-    }
+    const tmpClient = sSDK.createClient(cleanUrl, _supabaseKey);
+    const { data } = await tmpClient.from('rooms').select('data').eq('room_code', _room).maybeSingle();
 
     let roomData = null;
     if (!data) {
@@ -2218,17 +2228,12 @@ async function step2() {
         deposits: {},
         settings: { alertDays: 3 }
       };
-      const { error: upsertErr } = await tmpClient.from('rooms').upsert({ room_code: _room, data: roomData, updated_at: new Date().toISOString() });
-      if (upsertErr) {
-        if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-        return toast('建立房間失敗：' + upsertErr.message, 'error');
-      }
+      await tmpClient.from('rooms').upsert({ room_code: _room, data: roomData, updated_at: new Date().toISOString() });
     } else if (data && data.data) {
       roomData = data.data;
     }
 
     D = roomData || D;
-
     const memList = mems();
     const defaultMember = memList.find(m => m.role === 'admin') || memList[0];
 
@@ -2242,11 +2247,14 @@ async function step2() {
     localStorage.setItem(LK, JSON.stringify(CFG));
 
     if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-    toast(`連線成功！歡迎使用共用金管理系統 (${defaultMember ? defaultMember.name : ''})`, 'success');
+
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'flex';
+    toast(`連線成功！歡迎使用共用金管理系統`, 'success');
     startApp();
   } catch(e) {
     if (btnNext) { btnNext.disabled = false; btnNext.textContent = '下一步 →'; }
-    toast('Supabase 驗證失敗：' + e.message, 'error');
+    toast('連線提示：' + e.message, 'error');
   }
 }
 
