@@ -259,62 +259,10 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     <div class="setup-logo-icon">💰</div>
     <div class="setup-logo-text">共用金管理系統</div>
   </div>
-  <div class="setup-dots">
-    <div class="sdot active" id="d1"></div>
-    <div class="sline"></div>
-    <div class="sdot" id="d2"></div>
-    <div class="sline"></div>
-    <div class="sdot" id="d3"></div>
-  </div>
 
-  <div class="setup-step" id="ss1">
-    <div class="setup-title">連接 Supabase 資料庫</div>
-    <div class="setup-sub">預設已載入專屬 Supabase 專案設定。<br><a href="#" onclick="toggleHelp();return false;" style="color:var(--blue)">👉 查看 3 分鐘設定與 SQL 建表教學</a></div>
-    <div class="help-box" id="help-box" style="display:none">
-      <strong style="color:var(--t1)">Supabase 設定步驟（3 分鐘）：</strong><br>
-      1. 前往 <a href="https://supabase.com" target="_blank" style="color:var(--blue)">supabase.com</a> 免費註冊專案<br>
-      2. 在 **Project Settings -> API** 複製 **Project URL** 與 **anon public Key** 貼到下方<br>
-      3. 在 **SQL Editor** 執行下方指令建立資料表與開啟即時廣播：<br>
-      <div style="background:rgba(0,0,0,.5);padding:8px 10px;border-radius:6px;font-family:monospace;font-size:11px;margin-top:4px;user-select:all;color:#76e4f7">
-        CREATE TABLE IF NOT EXISTS rooms (<br>
-        &nbsp;&nbsp;room_code TEXT PRIMARY KEY,<br>
-        &nbsp;&nbsp;data JSONB NOT NULL DEFAULT '{}'::jsonb,<br>
-        &nbsp;&nbsp;updated_at TIMESTAMPTZ DEFAULT NOW()<br>
-        );<br>
-        ALTER TABLE rooms DISABLE ROW LEVEL SECURITY;<br>
-        CREATE POLICY "Allow anon all" ON rooms FOR ALL TO public USING (true) WITH CHECK (true);
-      </div>
-    </div>
-    <div class="fg">
-      <label class="fl">Supabase URL (專案網址)</label>
-      <input type="text" class="fc" id="s-supabase-url" value="https://vdrtmtqdhmeroakwwsiv.supabase.co" placeholder="例如：https://xyzcompany.supabase.co"/>
-    </div>
-    <div class="fg">
-      <label class="fl">Supabase Anon Key (API 金鑰)</label>
-      <textarea class="fc" id="s-supabase-key" rows="4" placeholder="例如：eyJhbGciOi... (anon public Key)">sb_publishable_F-LXdSZKmj58_32w2vESFQ_Fjt0CHgD</textarea>
-    </div>
-    <button class="btn btn-p" style="width:100%" onclick="step1()">下一步 →</button>
-  </div>
-
-  <div class="setup-step active" id="ss2">
-    <div class="setup-title">設定房間代碼</div>
-    <div class="setup-sub">三位使用者需輸入相同代碼才能共享資料。請自行設定一組專屬代碼（英文+數字，至少4字）。</div>
-    <div class="fg">
-      <label class="fl">房間代碼</label>
-      <input type="text" class="fc" id="s-room" placeholder="例如：wang2024" autocomplete="off"/>
-    </div>
-    <div style="background:rgba(246,173,85,.08);border:1px solid rgba(246,173,85,.2);border-radius:var(--rsm);padding:11px 13px;font-size:12px;color:var(--amber);margin-bottom:14px">
-      ⚠️ 知道此代碼的人才能存取資料，請妥善保管
-    </div>
-    <div class="flex g2i">
-      <button class="btn btn-sec" style="flex:1" onclick="goStep(1)">⚙️ Supabase 設定</button>
-      <button class="btn btn-p" style="flex:2" onclick="step2()">下一步 →</button>
-    </div>
-  </div>
-
-  <div class="setup-step" id="ss3">
+  <div class="setup-step active" id="ss3">
     <div class="setup-title">帳號與密碼登入</div>
-    <div class="setup-sub">請選擇成員並輸入密碼登入：</div>
+    <div class="setup-sub">請選擇成員並輸入密碼登入系統：</div>
     <div class="fg">
       <label class="fl">選擇成員</label>
       <select class="fc" id="s-mid-sel" onchange="onLoginSelChange(this.value,'s-role-preview')"></select>
@@ -324,10 +272,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       <label class="fl">輸入密碼</label>
       <input type="password" class="fc" id="s-pass-input" placeholder="預設管理者密碼：admin888 / 一般使用者：user123"/>
     </div>
-    <div class="flex g2i">
-      <button class="btn btn-sec" style="flex:1" onclick="goStep(2)">← 返回</button>
-      <button class="btn btn-p" style="flex:2" onclick="step3()">🔑 登入進入系統 ✓</button>
-    </div>
+    <button class="btn btn-p" style="width:100%;padding:13px;font-size:15px" onclick="step3()">🔑 登入進入系統 ✓</button>
   </div>
 </div>
 </div>
@@ -2039,14 +1984,7 @@ function logoutSystem() {
   }
 
   toast('已成功登出系統！', 'info');
-
-  fillLoginSelect('s-mid-sel');
-  const elPass = document.getElementById('s-pass-input');
-  if (elPass) elPass.value = '';
-
-  document.getElementById('app-screen').style.display = 'none';
-  document.getElementById('setup-screen').style.display = 'flex';
-  goStep(3);
+  showSetup();
 }
 
 // ═══════════════════════════════════════════════
@@ -2098,16 +2036,44 @@ let _cfg=null, _room='', _selMem=null, _tmpDb=null;
 let _supabaseUrl = DEF_SUPABASE_URL;
 let _supabaseKey = DEF_SUPABASE_KEY;
 
-function showSetup(){
-  document.getElementById('setup-screen').style.display='flex';
-  document.getElementById('app-screen').style.display='none';
+async function showSetup() {
+  document.getElementById('setup-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+
   _supabaseUrl = DEF_SUPABASE_URL;
   _supabaseKey = DEF_SUPABASE_KEY;
-  const elUrl = document.getElementById('s-supabase-url');
-  if (elUrl && !elUrl.value) elUrl.value = DEF_SUPABASE_URL;
-  const elKey = document.getElementById('s-supabase-key');
-  if (elKey && !elKey.value) elKey.value = DEF_SUPABASE_KEY;
-  goStep(2);
+  _room = 'main';
+
+  try {
+    const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+    if (sSDK) {
+      const cleanUrl = sanitizeSupabaseUrl(_supabaseUrl);
+      const tmpClient = sSDK.createClient(cleanUrl, _supabaseKey);
+      const { data } = await tmpClient.from('rooms').select('data').eq('room_code', 'main').maybeSingle();
+      if (!data) {
+        const ms = {};
+        const m1 = gid(), m2 = gid();
+        ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
+        ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
+        D = {
+          balance: 0,
+          members: ms,
+          categories: DEF_CATS,
+          locations: DEF_LOCS,
+          transactions: {},
+          fixedItems: {},
+          fixedExecutions: {},
+          deposits: {},
+          settings: { alertDays: 3 }
+        };
+        await tmpClient.from('rooms').upsert({ room_code: 'main', data: D, updated_at: new Date().toISOString() });
+      } else if (data && data.data) {
+        D = data.data;
+      }
+    }
+  } catch(e) { console.warn(e); }
+
+  fillLoginSelect('s-mid-sel');
 }
 function toggleHelp(){const h=document.getElementById('help-box');h.style.display=h.style.display==='none'?'block':'none';}
 function goStep(n){
