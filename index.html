@@ -924,7 +924,7 @@ function init() {
       CFG = JSON.parse(s);
       if (!CFG.supabaseUrl) CFG.supabaseUrl = DEF_SUPABASE_URL;
       if (!CFG.supabaseKey) CFG.supabaseKey = DEF_SUPABASE_KEY;
-      if (CFG.roomCode) {
+      if (CFG.roomCode && CFG.currentMemberId) {
         startApp();
         return;
       }
@@ -1971,8 +1971,11 @@ function fillLoginSelect(selectId) {
   const list = mems();
   sel.innerHTML = list.map(m => `<option value="${m.id}">${m.name} (${m.role === 'admin' ? '👑 管理者' : '👤 一般使用者'})</option>`).join('');
   if (list.length > 0) {
+    const adminMem = list.find(m => m.role === 'admin');
     if (CFG && CFG.currentMemberId && D.members[CFG.currentMemberId]) {
       sel.value = CFG.currentMemberId;
+    } else if (adminMem) {
+      sel.value = adminMem.id;
     } else {
       sel.value = list[0].id;
     }
