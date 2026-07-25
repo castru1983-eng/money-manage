@@ -948,10 +948,13 @@ async function saveData() {
 
 async function startApp() {
   try {
-    if (!window.supabase) return toast('Supabase SDK 未能成功載入', 'error');
-    const cleanUrl = sanitizeSupabaseUrl(CFG.supabaseUrl);
+    const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+    if (!sSDK) return toast('Supabase SDK 未能成功載入', 'error');
+    const cleanUrl = sanitizeSupabaseUrl(CFG.supabaseUrl || DEF_SUPABASE_URL);
+    const key = CFG.supabaseKey || DEF_SUPABASE_KEY;
     CFG.supabaseUrl = cleanUrl;
-    supabaseClient = supabase.createClient(cleanUrl, CFG.supabaseKey);
+    CFG.supabaseKey = key;
+    supabaseClient = sSDK.createClient(cleanUrl, key);
 
     const setupEl = document.getElementById('setup-screen');
     if (setupEl) setupEl.style.display = 'none';
@@ -963,39 +966,46 @@ async function startApp() {
     const rptMo = document.getElementById('rpt-mo');
     if (rptMo) rptMo.value = mon();
 
-    const { data, error } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).maybeSingle();
-    if (!data) {
-      await initRoom();
-    } else if (data && data.data) {
-      D = data.data;
+    if (CFG.roomCode) {
+      try {
+        const { data } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).maybeSingle();
+        if (!data) {
+          await initRoom();
+        } else if (data && data.data) {
+          D = data.data;
+        }
+      } catch(eDb) { console.warn(eDb); }
     }
-    listen();
+    
+    renderAppUI();
+    try { listen(); } catch(eL) { console.warn(eL); }
   } catch(e) {
-    toast('Supabase 連線失敗：' + e.message, 'error');
-    showSetup();
+    console.error(e);
+    toast('連線提示：' + e.message, 'error');
   }
 }
 
 function listen() {
-  if (roomSubscription) supabaseClient.removeChannel(roomSubscription);
+  if (!supabaseClient || !CFG.roomCode) return;
+  try {
+    if (roomSubscription) supabaseClient.removeChannel(roomSubscription);
 
-  renderAppUI();
-
-  roomSubscription = supabaseClient
-    .channel('room-' + CFG.roomCode)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: 'room_code=eq.' + CFG.roomCode }, (payload) => {
-      if (payload.new && payload.new.data) {
-        D = payload.new.data;
-        renderAppUI();
-      }
-    })
-    .subscribe((status) => {
-      const ok = status === 'SUBSCRIBED';
-      const dot = document.getElementById('sync-dot');
-      if (dot) dot.className = 'sync-dot' + (ok ? '' : ' off');
-      const txt = document.getElementById('sync-txt');
-      if (txt) txt.textContent = ok ? '即時同步中 (Supabase)' : '連線中...';
-    });
+    roomSubscription = supabaseClient
+      .channel('room-' + CFG.roomCode)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: 'room_code=eq.' + CFG.roomCode }, (payload) => {
+        if (payload.new && payload.new.data) {
+          D = payload.new.data;
+          renderAppUI();
+        }
+      })
+      .subscribe((status) => {
+        const ok = status === 'SUBSCRIBED';
+        const dot = document.getElementById('sync-dot');
+        if (dot) dot.className = 'sync-dot' + (ok ? '' : ' off');
+        const txt = document.getElementById('sync-txt');
+        if (txt) txt.textContent = ok ? '即時同步中 (Supabase)' : '連線中...';
+      });
+  } catch(e) { console.warn(e); }
 }
 
 function renderAppUI() {
@@ -1013,7 +1023,8 @@ function renderAppUI() {
 
   const me = CFG && D.members[CFG.currentMemberId];
   const isAdm = isAdmin();
-  document.getElementById('sb-name').textContent = me ? me.name : '未登入';
+  const elSbName = document.getElementById('sb-name');
+  if (elSbName) elSbName.textContent = me ? me.name : '未登入';
   const elBadge = document.getElementById('sb-role-badge');
   if (elBadge) elBadge.textContent = me ? (isAdm ? '👑 管理者' : '👤 一般使用者') : '';
   updateNavBadges();
@@ -1062,16 +1073,19 @@ function renderDash() {
   const elBtnFunds = document.getElementById('btn-funds');
   if (elBtnFunds) elBtnFunds.style.display = isAdm ? 'inline-flex' : 'none';
 
-  document.getElementById('dash-date').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+  const elDashDate = document.getElementById('dash-date');
+  if (elDashDate) elDashDate.textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
   const m = mon();
   const mt = txs().filter(t=>t.date.startsWith(m));
   const inc = mt.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
   const exp = mt.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
   const fixTot = fixes().filter(f=>f.active!==false).reduce((s,f)=>s+(f.amount||0),0);
-  document.getElementById('h-bal').textContent = fmt(D.balance);
-  document.getElementById('h-exp').textContent = fmt(exp);
-  document.getElementById('h-inc').textContent = fmt(inc);
-  document.getElementById('h-fix').textContent = fmt(fixTot);
+
+  const elHBal = document.getElementById('h-bal'); if (elHBal) elHBal.textContent = fmt(D.balance);
+  const elHExp = document.getElementById('h-exp'); if (elHExp) elHExp.textContent = fmt(exp);
+  const elHInc = document.getElementById('h-inc'); if (elHInc) elHInc.textContent = fmt(inc);
+  const elHFix = document.getElementById('h-fix'); if (elHFix) elHFix.textContent = fmt(fixTot);
+
   const unpaidFixTot = fixes().filter(f => f.active !== false && !execs().find(e => e.fixedId === f.id && e.month === m && e.done)).reduce((s, f) => s + (f.amount || 0), 0);
   const elSc1 = document.getElementById('sc1'); if (elSc1) elSc1.textContent = fmt(Math.max(0, D.balance - unpaidFixTot));
   const elSc2 = document.getElementById('sc2'); if (elSc2) elSc2.textContent = fmt(inc);
@@ -1079,33 +1093,39 @@ function renderDash() {
   const elSc4 = document.getElementById('sc4'); if (elSc4) elSc4.textContent = fixes().filter(f=>f.active!==false).length;
 
   const rec = txs().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,6);
-  document.getElementById('recent-tx').innerHTML = rec.length===0
-    ? `<div class="empty"><div class="empty-icon">📭</div><p>尚無交易紀錄</p></div>`
-    : rec.map(t=>`<div class="tx-item">
-        <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
-        <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
-        ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
-        ${isAdm ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>` : ''}
-        <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
-      </div>`).join('');
+  const elRecentTx = document.getElementById('recent-tx');
+  if (elRecentTx) {
+    elRecentTx.innerHTML = rec.length===0
+      ? `<div class="empty"><div class="empty-icon">📭</div><p>尚無交易紀錄</p></div>`
+      : rec.map(t=>`<div class="tx-item">
+          <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
+          <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
+          ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
+          ${isAdm ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>` : ''}
+          <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
+        </div>`).join('');
+  }
 
   const catMap={};
   mt.filter(t=>t.type==='out').forEach(t=>{const c=t.name||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
   makePie('ch-dash',catMap,210);
 
   const af = fixes().filter(f=>f.active!==false);
-  document.getElementById('fix-prog').innerHTML = af.length===0
-    ? `<div class="empty" style="padding:20px"><p>尚未設定固定支出</p></div>`
-    : af.map(f=>{
-        const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
-        const done=ex&&ex.done;
-        return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
-          <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.dayDate?f.dayDate+'截止':(f.day?f.day+'號前截止':'-')}</div></div>
-          <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
-          ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`:
-          (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`)}
-        </div>`;
-      }).join('');
+  const elFixProg = document.getElementById('fix-prog');
+  if (elFixProg) {
+    elFixProg.innerHTML = af.length===0
+      ? `<div class="empty" style="padding:20px"><p>尚未設定固定支出</p></div>`
+      : af.map(f=>{
+          const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
+          const done=ex&&ex.done;
+          return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
+            <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.dayDate?f.dayDate+'截止':(f.day?f.day+'號前截止':'-')}</div></div>
+            <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
+            ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`:
+            (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`)}
+          </div>`;
+        }).join('');
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -1116,27 +1136,33 @@ function renderMembers() {
   const tot={};
   ms.forEach(m=>{tot[m.id]={total:0,count:0};});
   deps().forEach(d=>{if(tot[d.memberId]){tot[d.memberId].total+=d.amount;tot[d.memberId].count++;}});
-  document.getElementById('mcards').innerHTML = ms.map(m=>`
-    <div class="mcard">
-      <div class="mcard-av" style="background:${m.color}22;color:${m.color}">${(m.name||'?')[0]}</div>
-      <div class="mcard-name">${m.name}</div>
-      <div class="mcard-sub">累計 ${tot[m.id]?.count||0} 次繳款</div>
-      <div style="font-size:22px;font-weight:900;color:${m.color}">NT$${fmt(tot[m.id]?.total)}</div>
-    </div>`).join('');
+  const elMcards = document.getElementById('mcards');
+  if (elMcards) {
+    elMcards.innerHTML = ms.map(m=>`
+      <div class="mcard">
+        <div class="mcard-av" style="background:${m.color}22;color:${m.color}">${(m.name||'?')[0]}</div>
+        <div class="mcard-name">${m.name}</div>
+        <div class="mcard-sub">累計 ${tot[m.id]?.count||0} 次繳款</div>
+        <div style="font-size:22px;font-weight:900;color:${m.color}">NT$${fmt(tot[m.id]?.total)}</div>
+      </div>`).join('');
+  }
 
   const dd = deps().sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('dep-tbody').innerHTML = dd.length===0
-    ? `<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:26px">尚無繳款紀錄</td></tr>`
-    : dd.map(d=>`<tr>
-        <td>${d.date}</td>
-        <td><span class="badge b-blue">${mName(d.memberId)}</span></td>
-        <td style="font-weight:900;color:var(--green)">NT$${fmt(d.amount)}</td>
-        <td style="color:var(--t3)">${d.note||'-'}${d.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${d.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
-        <td><div class="flex g2i">
-          <button class="btn btn-sec btn-icon btn-sm" onclick="openDeposit('${d.id}')" title="編輯/補傳照片">✏️</button>
-          <button class="btn btn-d btn-icon btn-sm" onclick="delDeposit('${d.id}')" title="刪除">🗑</button>
-        </div></td>
-      </tr>`).join('');
+  const elDepTbody = document.getElementById('dep-tbody');
+  if (elDepTbody) {
+    elDepTbody.innerHTML = dd.length===0
+      ? `<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:26px">尚無繳款紀錄</td></tr>`
+      : dd.map(d=>`<tr>
+          <td>${d.date}</td>
+          <td><span class="badge b-blue">${mName(d.memberId)}</span></td>
+          <td style="font-weight:900;color:var(--green)">NT$${fmt(d.amount)}</td>
+          <td style="color:var(--t3)">${d.note||'-'}${d.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${d.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
+          <td><div class="flex g2i">
+            <button class="btn btn-sec btn-icon btn-sm" onclick="openDeposit('${d.id}')" title="編輯/補傳照片">✏️</button>
+            <button class="btn btn-d btn-icon btn-sm" onclick="delDeposit('${d.id}')" title="刪除">🗑</button>
+          </div></td>
+        </tr>`).join('');
+  }
 }
 
 
@@ -1504,51 +1530,63 @@ function renderSettings() {
   const elAddMem = document.getElementById('set-add-mem-wrap');
   if (elAddMem) elAddMem.style.display = isAdm ? 'block' : 'none';
 
-  document.getElementById('set-members').innerHTML = mems().map(m => `
-    <div class="card" style="padding:14px;margin-bottom:10px;background:rgba(255,255,255,.02)">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-        <div class="flex ic g2i">
-          <div style="width:28px;height:28px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px">${(m.name||'?')[0]}</div>
-          <input class="inline-edit" value="${m.name}" ${isAdm ? `onchange="renMem('${m.id}',this.value)"` : 'disabled'} style="font-weight:800"/>
+  const elSetMems = document.getElementById('set-members');
+  if (elSetMems) {
+    elSetMems.innerHTML = mems().map(m => `
+      <div class="card" style="padding:14px;margin-bottom:10px;background:rgba(255,255,255,.02)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div class="flex ic g2i">
+            <div style="width:28px;height:28px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px">${(m.name||'?')[0]}</div>
+            <input class="inline-edit" value="${m.name}" ${isAdm ? `onchange="renMem('${m.id}',this.value)"` : 'disabled'} style="font-weight:800"/>
+          </div>
+          <div class="flex ic g2i">
+            <input type="color" value="${m.color}" ${isAdm ? `onchange="chColor('${m.id}',this.value)"` : 'disabled'} style="width:24px;height:24px;border:none;background:none;cursor:pointer;border-radius:50%;padding:0"/>
+            ${isAdm && mems().length > 1 ? `<button class="btn btn-d btn-icon btn-sm" onclick="delMem('${m.id}')">🗑</button>` : ''}
+          </div>
         </div>
-        <div class="flex ic g2i">
-          <input type="color" value="${m.color}" ${isAdm ? `onchange="chColor('${m.id}',this.value)"` : 'disabled'} style="width:24px;height:24px;border:none;background:none;cursor:pointer;border-radius:50%;padding:0"/>
-          ${isAdm && mems().length > 1 ? `<button class="btn btn-d btn-icon btn-sm" onclick="delMem('${m.id}')">🗑</button>` : ''}
+        <div class="fr" style="gap:8px">
+          <div>
+            <label class="fl" style="font-size:10px">帳號</label>
+            <input type="text" class="fc" value="${m.username||''}" ${isAdm ? `onchange="chUser('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+          </div>
+          <div>
+            <label class="fl" style="font-size:10px">密碼</label>
+            <input type="text" class="fc" value="${m.password||''}" ${isAdm ? `onchange="chPass('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+          </div>
         </div>
-      </div>
-      <div class="fr" style="gap:8px">
-        <div>
-          <label class="fl" style="font-size:10px">帳號</label>
-          <input type="text" class="fc" value="${m.username||''}" ${isAdm ? `onchange="chUser('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+        <div style="margin-top:8px">
+          <label class="fl" style="font-size:10px">權限角色</label>
+          <select class="fc" ${isAdm ? `onchange="chRole('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px">
+            <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>👑 管理者 (可完整編輯、扣款與管理)</option>
+            <option value="user" ${m.role === 'user' ? 'selected' : ''}>👤 一般使用者 (僅供檢視)</option>
+          </select>
         </div>
-        <div>
-          <label class="fl" style="font-size:10px">密碼</label>
-          <input type="text" class="fc" value="${m.password||''}" ${isAdm ? `onchange="chPass('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
-        </div>
-      </div>
-      <div style="margin-top:8px">
-        <label class="fl" style="font-size:10px">權限角色</label>
-        <select class="fc" ${isAdm ? `onchange="chRole('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px">
-          <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>👑 管理者 (可完整編輯、扣款與管理)</option>
-          <option value="user" ${m.role === 'user' ? 'selected' : ''}>👤 一般使用者 (僅供檢視)</option>
-        </select>
-      </div>
-    </div>`).join('');
+      </div>`).join('');
+  }
 
-  document.getElementById('set-cats').innerHTML = D.categories.map((c, i) => `
-    <div class="srow">
-      <span style="font-size:13px">${catIcon(c)} ${c}</span>
-      ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delCat(${i})">🗑</button>` : ''}
-    </div>`).join('');
+  const elSetCats = document.getElementById('set-cats');
+  if (elSetCats) {
+    elSetCats.innerHTML = D.categories.map((c, i) => `
+      <div class="srow">
+        <span style="font-size:13px">${catIcon(c)} ${c}</span>
+        ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delCat(${i})">🗑</button>` : ''}
+      </div>`).join('');
+  }
 
-  document.getElementById('set-locs').innerHTML = (D.locations || DEF_LOCS).map((loc, i) => `
-    <div class="srow">
-      <span style="font-size:13px">📍 ${loc}</span>
-      ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delLoc(${i})">🗑</button>` : ''}
-    </div>`).join('');
+  const elSetLocs = document.getElementById('set-locs');
+  if (elSetLocs) {
+    elSetLocs.innerHTML = (D.locations || DEF_LOCS).map((loc, i) => `
+      <div class="srow">
+        <span style="font-size:13px">📍 ${loc}</span>
+        ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delLoc(${i})">🗑</button>` : ''}
+      </div>`).join('');
+  }
 
-  document.getElementById('info-room').textContent = CFG.roomCode;
-  document.getElementById('info-me').textContent = mName(CFG.currentMemberId) + (isAdm ? ' (👑 管理者)' : ' (👤 一般使用者)');
+  const elInfoRoom = document.getElementById('info-room');
+  if (elInfoRoom) elInfoRoom.textContent = CFG.roomCode;
+
+  const elInfoMe = document.getElementById('info-me');
+  if (elInfoMe) elInfoMe.textContent = mName(CFG.currentMemberId) + (isAdm ? ' (👑 管理者)' : ' (👤 一般使用者)');
   const curAlertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
   const elDays = document.getElementById('set-alert-days');
   if (elDays) {
@@ -1955,6 +1993,12 @@ function onLoginSelChange(mid, prevId = 'login-role-preview') {
       </div>
     </div>`;
   }
+
+  const passInputId = prevId === 's-role-preview' ? 's-pass-input' : 'login-pass-input';
+  const elPass = document.getElementById(passInputId);
+  if (elPass && m && m.password) {
+    elPass.value = m.password;
+  }
 }
 
 function submitLoginModal() {
@@ -2173,17 +2217,24 @@ function step3() {
   const m = D.members[mid];
   if (!m) return toast('請選擇成員', 'error');
   if (m.password && pass !== m.password) {
-    return toast('密碼錯誤！請重新輸入', 'error');
+    return toast('密碼錯誤！請重新輸入（預設管理者密碼：admin888 / 一般使用者：user123）', 'error');
   }
 
   CFG = {
-    supabaseUrl: sanitizeSupabaseUrl(_supabaseUrl),
-    supabaseKey: _supabaseKey,
-    roomCode: _room,
+    supabaseUrl: sanitizeSupabaseUrl(_supabaseUrl || DEF_SUPABASE_URL),
+    supabaseKey: _supabaseKey || DEF_SUPABASE_KEY,
+    roomCode: _room || '1234',
     currentMemberId: mid,
     role: m.role || 'user'
   };
   localStorage.setItem(LK, JSON.stringify(CFG));
+
+  const setupEl = document.getElementById('setup-screen');
+  if (setupEl) setupEl.style.display = 'none';
+  const appEl = document.getElementById('app-screen');
+  if (appEl) appEl.style.display = 'flex';
+
+  toast(`登入成功！歡迎使用共用金管理系統 (${m.name})`, 'success');
   startApp();
 }
 
