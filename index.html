@@ -1470,6 +1470,43 @@ function renderReport() {
 // ═══════════════════════════════════════════════
 //  SETTINGS
 // ═══════════════════════════════════════════════
+let editingMemberId = null;
+
+function toggleEditMem(id) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可編輯成員', 'error');
+  editingMemberId = (editingMemberId === id) ? null : id;
+  renderSettings();
+}
+
+async function saveMemEdit(id) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可編輯成員', 'error');
+  const card = document.getElementById('mem-card-' + id);
+  if (!card) return;
+
+  const nameVal = card.querySelector('.mem-edit-name')?.value.trim();
+  const colorVal = card.querySelector('.mem-edit-color')?.value;
+  const userVal = card.querySelector('.mem-edit-user')?.value.trim();
+  const passVal = card.querySelector('.mem-edit-pass')?.value.trim();
+  const roleVal = card.querySelector('.mem-edit-role')?.value;
+
+  if (!nameVal) return toast('請輸入名稱', 'error');
+  if (!userVal) return toast('請輸入帳號', 'error');
+  if (!passVal) return toast('請輸入密碼', 'error');
+
+  if (D.members[id]) {
+    D.members[id].name = nameVal;
+    D.members[id].color = colorVal;
+    D.members[id].username = userVal;
+    D.members[id].password = passVal;
+    D.members[id].role = roleVal;
+  }
+
+  editingMemberId = null;
+  toast('成員資料與權限已成功儲存！', 'success');
+  renderAppUI();
+  await saveData();
+}
+
 function renderSettings() {
   const isAdm = isAdmin();
   const elAddMem = document.getElementById('set-add-mem-wrap');
@@ -1477,36 +1514,50 @@ function renderSettings() {
 
   const elSetMems = document.getElementById('set-members');
   if (elSetMems) {
-    elSetMems.innerHTML = mems().map(m => `
-      <div class="card" style="padding:14px;margin-bottom:10px;background:rgba(255,255,255,.02)">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    elSetMems.innerHTML = mems().map(m => {
+      const isEditing = isAdm && (editingMemberId === m.id);
+      return `
+      <div class="card" id="mem-card-${m.id}" style="padding:14px;margin-bottom:10px;background:${isEditing ? 'rgba(99,179,237,.06)' : 'rgba(255,255,255,.02)'};border:1px solid ${isEditing ? 'rgba(99,179,237,.4)' : 'var(--border)'}">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div class="flex ic g2i">
-            <div style="width:28px;height:28px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px">${(m.name||'?')[0]}</div>
-            <input class="inline-edit" value="${m.name}" ${isAdm ? `onchange="renMem('${m.id}',this.value)"` : 'disabled'} style="font-weight:800"/>
+            <div style="width:30px;height:30px;border-radius:50%;background:${m.color}22;color:${m.color};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px">${(m.name||'?')[0]}</div>
+            ${isEditing
+              ? `<input class="fc mem-edit-name" value="${m.name}" style="font-weight:800;width:130px;padding:4px 8px;font-size:13px"/>`
+              : `<span style="font-weight:800;font-size:14px;color:var(--t1)">${m.name}</span>`
+            }
           </div>
           <div class="flex ic g2i">
-            <input type="color" value="${m.color}" ${isAdm ? `onchange="chColor('${m.id}',this.value)"` : 'disabled'} style="width:24px;height:24px;border:none;background:none;cursor:pointer;border-radius:50%;padding:0"/>
-            ${isAdm && mems().length > 1 ? `<button class="btn btn-d btn-icon btn-sm" onclick="delMem('${m.id}')">🗑</button>` : ''}
+            <input type="color" class="mem-edit-color" value="${m.color}" ${isEditing ? '' : 'disabled'} style="width:24px;height:24px;border:none;background:none;cursor:${isEditing ? 'pointer' : 'default'};border-radius:50%;padding:0"/>
+            ${isAdm ? (
+              isEditing ? `
+                <button class="btn btn-p btn-sm" onclick="saveMemEdit('${m.id}')" style="padding:3px 10px;font-size:12px">💾 儲存</button>
+                <button class="btn btn-sec btn-sm" onclick="toggleEditMem('${m.id}')" style="padding:3px 8px;font-size:12px">✖ 取消</button>
+              ` : `
+                <button class="btn btn-sec btn-sm" onclick="toggleEditMem('${m.id}')" style="padding:3px 10px;font-size:12px">✏️ 編輯</button>
+                ${mems().length > 1 ? `<button class="btn btn-d btn-icon btn-sm" onclick="delMem('${m.id}')">🗑</button>` : ''}
+              `
+            ) : ''}
           </div>
         </div>
-        <div class="fr" style="gap:8px">
+        <div class="fr" style="gap:10px">
           <div>
-            <label class="fl" style="font-size:10px">帳號</label>
-            <input type="text" class="fc" value="${m.username||''}" ${isAdm ? `onchange="chUser('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+            <label class="fl" style="font-size:11px;color:var(--t2)">帳號</label>
+            <input type="text" class="fc mem-edit-user" value="${m.username||''}" ${isEditing ? '' : 'disabled'} style="padding:5px 9px;font-size:12px;${!isEditing ? 'opacity:.75;background:transparent;border-color:rgba(255,255,255,.05)' : ''}"/>
           </div>
           <div>
-            <label class="fl" style="font-size:10px">密碼</label>
-            <input type="text" class="fc" value="${m.password||''}" ${isAdm ? `onchange="chPass('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px"/>
+            <label class="fl" style="font-size:11px;color:var(--t2)">密碼</label>
+            <input type="${isEditing ? 'text' : 'password'}" class="fc mem-edit-pass" value="${m.password||''}" ${isEditing ? '' : 'disabled'} style="padding:5px 9px;font-size:12px;${!isEditing ? 'opacity:.75;background:transparent;border-color:rgba(255,255,255,.05)' : ''}"/>
           </div>
         </div>
-        <div style="margin-top:8px">
-          <label class="fl" style="font-size:10px">權限角色</label>
-          <select class="fc" ${isAdm ? `onchange="chRole('${m.id}',this.value)"` : 'disabled'} style="padding:4px 8px;font-size:12px">
+        <div style="margin-top:10px">
+          <label class="fl" style="font-size:11px;color:var(--t2)">權限角色</label>
+          <select class="fc mem-edit-role" ${isEditing ? '' : 'disabled'} style="padding:5px 9px;font-size:12px;${!isEditing ? 'opacity:.75;background:transparent;border-color:rgba(255,255,255,.05)' : ''}">
             <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>👑 管理者 (可完整編輯、扣款與管理)</option>
             <option value="user" ${m.role === 'user' ? 'selected' : ''}>👤 一般使用者 (僅供檢視)</option>
           </select>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   const elSetCats = document.getElementById('set-cats');
