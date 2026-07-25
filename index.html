@@ -1987,6 +1987,12 @@ function onLoginSelChange(mid, prevId = 'login-role-preview') {
       </div>
     </div>`;
   }
+
+  const passInputId = prevId === 's-role-preview' ? 's-pass-input' : 'login-pass-input';
+  const elPass = document.getElementById(passInputId);
+  if (elPass && m && m.password) {
+    elPass.value = m.password;
+  }
 }
 
 function submitLoginModal() {
@@ -2149,9 +2155,21 @@ function step1() {
 }
 
 async function step2() {
-  const room = document.getElementById('s-room').value.trim();
-  if (!room || room.length < 4) return toast('房間代碼至少 4 個字元', 'error');
+  let room = document.getElementById('s-room').value.trim();
+  if (!room) {
+    room = '1234';
+    document.getElementById('s-room').value = '1234';
+  }
+  if (room.length < 4) return toast('房間代碼至少 4 個字元', 'error');
   _room = room;
+
+  const urlInput = document.getElementById('s-supabase-url');
+  const keyInput = document.getElementById('s-supabase-key');
+  if (urlInput && urlInput.value.trim()) _supabaseUrl = urlInput.value.trim();
+  if (keyInput && keyInput.value.trim()) _supabaseKey = keyInput.value.trim();
+  if (!_supabaseUrl) _supabaseUrl = DEF_SUPABASE_URL;
+  if (!_supabaseKey) _supabaseKey = DEF_SUPABASE_KEY;
+
   toast('驗證 Supabase 資料庫連線中...', 'info');
 
   try {
@@ -2159,6 +2177,10 @@ async function step2() {
     const cleanUrl = sanitizeSupabaseUrl(_supabaseUrl);
     const tmpClient = supabase.createClient(cleanUrl, _supabaseKey);
     const { data, error } = await tmpClient.from('rooms').select('data').eq('room_code', _room).maybeSingle();
+
+    if (error) {
+      return toast('Supabase 查詢失敗：' + error.message, 'error');
+    }
 
     let roomData = null;
     if (!data) {
@@ -2186,14 +2208,12 @@ async function step2() {
       }
     } else if (data && data.data) {
       roomData = data.data;
-    } else if (error) {
-      return toast('連線失敗：' + error.message, 'error');
     }
 
     D = roomData || D;
     fillLoginSelect('s-mid-sel');
     goStep(3);
-    toast('連線成功！請選擇登入成員', 'success');
+    toast('連線成功！請點擊「登入進入系統」', 'success');
   } catch(e) {
     toast('Supabase 驗證失敗：' + e.message, 'error');
   }
