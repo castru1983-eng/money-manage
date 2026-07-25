@@ -1605,8 +1605,10 @@ async function addMember(){
 }
 async function delMem(id){
   if (!isAdmin()) return toast('權限不足：僅管理者可刪除成員', 'error');
-  if(!confirm('確定刪除此成員帳號？'))return;
+  const m = D.members[id];
+  if(!confirm(`確定要刪除成員帳號「${m ? m.name : '此成員'}」？`)) return;
   delete D.members[id];
+  toast(`已刪除成員「${m ? m.name : ''}」`, 'info');
   await saveData();
 }
 async function addCat(){
@@ -1618,7 +1620,10 @@ async function addCat(){
 }
 async function delCat(i){
   if (!isAdmin()) return toast('權限不足：僅管理者可刪除類別', 'error');
+  const catName = D.categories[i];
+  if(!confirm(`確定要刪除「${catName||'此類別'}」這個支出項目類別？`)) return;
   D.categories = D.categories.filter((_,j)=>j!==i);
+  toast(`已刪除類別「${catName||''}」`, 'info');
   await saveData();
 }
 async function addLoc(){
@@ -1631,7 +1636,10 @@ async function addLoc(){
 async function delLoc(i){
   if (!isAdmin()) return toast('權限不足：僅管理者可刪除地點', 'error');
   const curLocs=D.locations&&D.locations.length?D.locations:[...DEF_LOCS];
+  const locName = curLocs[i];
+  if(!confirm(`確定要刪除「${locName||'此地點'}」這個地點場所？`)) return;
   D.locations = curLocs.filter((_,j)=>j!==i);
+  toast(`已刪除地點「${locName||''}」`, 'info');
   await saveData();
 }
 function resetConn(){if(!confirm('確定重設連線？'))return;localStorage.removeItem(LK);location.reload();}
