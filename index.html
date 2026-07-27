@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#07090f;--bg2:#0c1018;--glass:rgba(255,255,255,0.04);--glassH:rgba(255,255,255,0.07);
@@ -380,6 +381,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       <select class="fc" id="lf-c" onchange="renderLedger()"><option value="">所有項目</option></select>
       <select class="fc" id="lf-l" onchange="renderLedger()"><option value="">所有地點</option></select>
       <input type="text" class="fc" id="lf-s" placeholder="搜尋..." oninput="renderLedger()"/>
+      <button type="button" class="btn btn-sec btn-sm" onclick="exportLedgerExcel()" style="white-space:nowrap" title="匯出當前搜尋/篩選結果為 Excel 報表">📊 匯出Excel</button>
     </div>
     <div class="tw"><table><thead><tr><th>日期</th><th>類型</th><th>項目</th><th>地點</th><th>相關人員</th><th>金額</th><th>餘額</th></tr></thead><tbody id="led-tbody"></tbody></table></div>
     <div class="flex g3i" style="margin-top:12px;flex-wrap:wrap" id="led-sum"></div>
@@ -1344,6 +1346,74 @@ function renderLedger() {
     <span style="color:var(--green);font-weight:800;font-size:13px">收入：NT$${fmt(ti)}</span>
     <span style="color:var(--red);font-weight:800;font-size:13px">支出：NT$${fmt(to)}</span>
     <span style="color:var(--t2);font-size:13px">淨額：<span style="color:${ti-to>=0?'var(--green)':'var(--red)'};font-weight:900">NT$${fmt(ti-to)}</span></span>`;
+
+  currentLedgerList = list;
+}
+
+let currentLedgerList = [];
+
+function exportLedgerExcel() {
+  if (!currentLedgerList || currentLedgerList.length === 0) {
+    return toast('目前沒有符合條件的明細資料可供匯出', 'info');
+  }
+
+  const dataRows = currentLedgerList.map(t => ({
+    '日期': t.date || '',
+    '類型': t.type === 'in' ? '收入' : '支出',
+    '項目': t.name || '',
+    '地點': t.location || '-',
+    '相關人員': t.paidBy ? mName(t.paidBy) : '-',
+    '金額': t.type === 'in' ? t.amount : -t.amount,
+    '餘額': t.balanceAfter || 0,
+    '備註': t.note || ''
+  }));
+
+  const moVal = document.getElementById('lf-mo') ? document.getElementById('lf-mo').value : '';
+  const dateStr = moVal ? moVal : tod();
+  const filename = `帳目明細報表_${dateStr}.xlsx`;
+
+  if (window.XLSX) {
+    const ws = XLSX.utils.json_to_sheet(dataRows);
+    ws['!cols'] = [
+      { wch: 12 }, // 日期
+      { wch: 8 },  // 類型
+      { wch: 22 }, // 項目
+      { wch: 12 }, // 地點
+      { wch: 14 }, // 相關人員
+      { wch: 14 }, // 金額
+      { wch: 14 }, // 餘額
+      { wch: 25 }  // 備註
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '帳目明細');
+    XLSX.writeFile(wb, filename);
+    toast(`已匯出 ${currentLedgerList.length} 筆帳目明細 Excel 報表！`, 'success');
+  } else {
+    const headers = ['日期', '類型', '項目', '地點', '相關人員', '金額', '餘額', '備註'];
+    const csvLines = [headers.join(',')];
+
+    dataRows.forEach(r => {
+      const row = [
+        `"${r['日期']}"`,
+        `"${r['類型']}"`,
+        `"${(r['項目'] || '').replace(/"/g, '""')}"`,
+        `"${r['地點']}"`,
+        `"${r['相關人員']}"`,
+        r['金額'],
+        r['餘額'],
+        `"${(r['備註'] || '').replace(/"/g, '""')}"`
+      ];
+      csvLines.push(row.join(','));
+    });
+
+    const csvContent = '\ufeff' + csvLines.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `帳目明細報表_${dateStr}.csv`;
+    link.click();
+    toast(`已匯出 ${currentLedgerList.length} 筆帳目明細 CSV 報表！`, 'success');
+  }
 }
 
 async function delTx(txId) {
