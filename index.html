@@ -380,6 +380,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       <select class="fc" id="lf-t" onchange="renderLedger()"><option value="">所有類型</option><option value="in">收入</option><option value="out">支出</option></select>
       <select class="fc" id="lf-c" onchange="renderLedger()"><option value="">所有項目</option></select>
       <select class="fc" id="lf-l" onchange="renderLedger()"><option value="">所有地點</option></select>
+      <select class="fc" id="lf-m" onchange="renderLedger()"><option value="">所有人員</option></select>
       <input type="text" class="fc" id="lf-s" placeholder="搜尋..." oninput="renderLedger()"/>
       <button type="button" class="btn btn-sec btn-sm" onclick="exportLedgerExcel()" style="white-space:nowrap" title="匯出當前搜尋/篩選結果為 Excel 報表">📊 匯出Excel</button>
     </div>
@@ -1181,7 +1182,7 @@ function renderFixed() {
         const done=ex&&ex.done;
         let statusHtml = '';
         if (done) {
-          statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date})</span>`;
+          statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date}${ex.paidBy ? ' · ' + mName(ex.paidBy) : ''})</span>`;
         } else {
           if (!isAdm) {
             statusHtml = `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`;
@@ -1311,7 +1312,8 @@ async function execAllPendingFixed() {
 function renderLedger() {
   fillLocs('lf-l', '所有地點');
   fillCats('lf-c', '所有項目');
-  const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, cF=document.getElementById('lf-c')?document.getElementById('lf-c').value:'', lF=document.getElementById('lf-l').value, sF=document.getElementById('lf-s').value.toLowerCase();
+  fillMems('lf-m', '所有人員');
+  const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, cF=document.getElementById('lf-c')?document.getElementById('lf-c').value:'', lF=document.getElementById('lf-l').value, mF=document.getElementById('lf-m')?document.getElementById('lf-m').value:'', sF=document.getElementById('lf-s').value.toLowerCase();
   let list=txs().map(t => {
     if (t.ref && D.fixedExecutions[t.ref]) {
       const ex = D.fixedExecutions[t.ref];
@@ -1328,7 +1330,8 @@ function renderLedger() {
   if(tF)list=list.filter(t=>t.type===tF);
   if(cF)list=list.filter(t=>(t.category===cF)||(t.name===cF)||(t.name&&t.name.includes(cF))||(t.category&&t.category.includes(cF)));
   if(lF)list=list.filter(t=>t.location===lF);
-  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF)||(t.category||'').toLowerCase().includes(sF));
+  if(mF)list=list.filter(t=>t.paidBy===mF);
+  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF)||(t.category||'').toLowerCase().includes(sF)||(t.paidBy ? mName(t.paidBy).toLowerCase().includes(sF) : false));
   document.getElementById('led-tbody').innerHTML=list.length===0
     ?`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
     :list.map(t=>`<tr>
@@ -1759,7 +1762,19 @@ function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
-function fillMems(selId,empty=true){document.getElementById(selId).innerHTML=(empty?'<option value="">不指定</option>':'')+mems().map(m=>`<option value="${m.id}">${m.name}</option>`).join('');}
+function fillMems(selId, emptyText=''){
+  const el = document.getElementById(selId);
+  if(!el) return;
+  const curVal = el.value;
+  const list = mems();
+  let optText = '';
+  if (emptyText === true) optText = '不指定';
+  else if (typeof emptyText === 'string') optText = emptyText;
+  el.innerHTML = (optText ? `<option value="">${optText}</option>` : '') + list.map(m => `<option value="${m.id}">${m.name}</option>`).join('');
+  if (curVal !== undefined && curVal !== null && curVal !== '') {
+    if (list.some(m => m.id === curVal) || curVal === '') el.value = curVal;
+  }
+}
 function fillCats(selId, emptyText=''){
   const el = document.getElementById(selId);
   if(!el) return;
