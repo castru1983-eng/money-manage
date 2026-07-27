@@ -377,6 +377,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       <input type="month" class="fc" id="lf-mo" onchange="renderLedger()"/>
       <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('lf-mo').value='';renderLedger()" style="white-space:nowrap">📅 所有月份</button>
       <select class="fc" id="lf-t" onchange="renderLedger()"><option value="">所有類型</option><option value="in">收入</option><option value="out">支出</option></select>
+      <select class="fc" id="lf-c" onchange="renderLedger()"><option value="">所有項目</option></select>
       <select class="fc" id="lf-l" onchange="renderLedger()"><option value="">所有地點</option></select>
       <input type="text" class="fc" id="lf-s" placeholder="搜尋..." oninput="renderLedger()"/>
     </div>
@@ -1307,7 +1308,8 @@ async function execAllPendingFixed() {
 // ═══════════════════════════════════════════════
 function renderLedger() {
   fillLocs('lf-l', '所有地點');
-  const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, lF=document.getElementById('lf-l').value, sF=document.getElementById('lf-s').value.toLowerCase();
+  fillCats('lf-c', '所有項目');
+  const moF=document.getElementById('lf-mo').value, tF=document.getElementById('lf-t').value, cF=document.getElementById('lf-c')?document.getElementById('lf-c').value:'', lF=document.getElementById('lf-l').value, sF=document.getElementById('lf-s').value.toLowerCase();
   let list=txs().map(t => {
     if (t.ref && D.fixedExecutions[t.ref]) {
       const ex = D.fixedExecutions[t.ref];
@@ -1322,8 +1324,9 @@ function renderLedger() {
   }).sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0));
   if(moF)list=list.filter(t=>t.date.startsWith(moF));
   if(tF)list=list.filter(t=>t.type===tF);
+  if(cF)list=list.filter(t=>(t.category===cF)||(t.name===cF)||(t.name&&t.name.includes(cF))||(t.category&&t.category.includes(cF)));
   if(lF)list=list.filter(t=>t.location===lF);
-  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF));
+  if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF)||(t.category||'').toLowerCase().includes(sF));
   document.getElementById('led-tbody').innerHTML=list.length===0
     ?`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
     :list.map(t=>`<tr>
@@ -1687,8 +1690,38 @@ function closeM(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
 function fillMems(selId,empty=true){document.getElementById(selId).innerHTML=(empty?'<option value="">不指定</option>':'')+mems().map(m=>`<option value="${m.id}">${m.name}</option>`).join('');}
-function fillCats(selId){document.getElementById(selId).innerHTML=D.categories.map(c=>`<option value="${c}">${c}</option>`).join('');}
-function fillLocs(selId,emptyText='不指定/全區'){const locList=(D.locations&&D.locations.length)?D.locations:DEF_LOCS;const el=document.getElementById(selId);if(!el)return;el.innerHTML=(emptyText?`<option value="">${emptyText}</option>`:'')+locList.map(l=>`<option value="${l}">${l}</option>`).join('');}
+function fillCats(selId, emptyText=''){
+  const el = document.getElementById(selId);
+  if(!el) return;
+  const curVal = el.value;
+  let items = [...(D.categories || DEF_CATS)];
+  try {
+    txs().forEach(t => {
+      if (t.category && !items.includes(t.category)) items.push(t.category);
+      if (t.name) {
+        const cleanName = t.name.replace(/（固定）/g, '').trim();
+        if (cleanName && !items.includes(cleanName) && !items.includes(t.name)) {
+          items.push(cleanName);
+        }
+      }
+    });
+  } catch(e) {}
+  const uniqueItems = Array.from(new Set(items)).filter(Boolean);
+  el.innerHTML = (emptyText ? `<option value="">${emptyText}</option>` : '') + uniqueItems.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (curVal !== undefined && curVal !== null && curVal !== '') {
+    if (uniqueItems.includes(curVal) || curVal === '') el.value = curVal;
+  }
+}
+function fillLocs(selId,emptyText='不指定/全區'){
+  const locList=(D.locations&&D.locations.length)?D.locations:DEF_LOCS;
+  const el=document.getElementById(selId);
+  if(!el)return;
+  const curVal = el.value;
+  el.innerHTML=(emptyText?`<option value="">${emptyText}</option>`:'')+locList.map(l=>`<option value="${l}">${l}</option>`).join('');
+  if (curVal !== undefined && curVal !== null && curVal !== '') {
+    if (locList.includes(curVal) || curVal === '') el.value = curVal;
+  }
+}
 
 // --- Funds ---
 function openFunds(){fillLocs('f-loc','不指定');document.getElementById('f-amt').value='';document.getElementById('f-date').value=tod();document.getElementById('f-note').value='';clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val');openM('mo-funds');}
