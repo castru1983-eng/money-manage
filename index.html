@@ -346,11 +346,14 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 <!-- MEMBERS -->
 <div class="page" id="page-members">
   <div class="ph">
-    <div><div class="ph-title">👥 成員管理</div><div class="ph-sub">成員繳款紀錄</div></div>
+    <div><div class="ph-title">👥 成員管理</div><div class="ph-sub">成員當月累積繳款與代繳紀錄</div></div>
+    <div>
+      <input type="month" class="fc" id="mem-mo" onchange="renderMembers()" style="width:auto"/>
+    </div>
   </div>
   <div class="g3 mb6" id="mcards"></div>
   <div class="card">
-    <div class="ct">繳款與扣款紀錄</div>
+    <div class="ct">當月繳款與扣款紀錄</div>
     <div class="tw"><table><thead><tr><th>日期</th><th>成員</th><th>項目</th><th>金額</th><th>備註</th><th>操作</th></tr></thead><tbody id="dep-tbody"></tbody></table></div>
   </div>
 </div>
@@ -932,6 +935,8 @@ async function startApp() {
     if (lfMo) lfMo.value = '';
     const rptMo = document.getElementById('rpt-mo');
     if (rptMo) rptMo.value = mon();
+    const memMo = document.getElementById('mem-mo');
+    if (memMo) memMo.value = mon();
 
     if (CFG.roomCode) {
       try {
@@ -1116,6 +1121,10 @@ function renderDash() {
 // ═══════════════════════════════════════════════
 function renderMembers() {
   const isAdm = isAdmin();
+  const elMo = document.getElementById('mem-mo');
+  if (elMo && !elMo.value) elMo.value = mon();
+  const curMo = elMo ? elMo.value : mon();
+
   const ms = mems();
   const tot = {};
   ms.forEach(m => { tot[m.id] = { total: 0, count: 0 }; });
@@ -1123,8 +1132,8 @@ function renderMembers() {
   const recordList = [];
   const countedRefs = new Set();
 
-  // 1. 成員繳款 (D.deposits)
-  deps().forEach(d => {
+  // 1. 成員繳款 (D.deposits - 依當月篩選)
+  deps().filter(d => (d.date || '').startsWith(curMo)).forEach(d => {
     const mid = findMemberId(d.memberId || d.member || d.paidBy);
     const amt = d.amount || 0;
     if (mid && tot[mid]) {
@@ -1146,36 +1155,34 @@ function renderMembers() {
     });
   });
 
-  // 2. 固定支出代繳/扣款 (D.fixedExecutions)
-  execs().forEach(ex => {
-    if (ex.done) {
-      const f = D.fixedItems[ex.fixedId];
-      const mid = findMemberId(ex.paidBy || (f ? f.paidBy : null));
-      const amt = typeof ex.amount === 'number' ? ex.amount : (f ? f.amount : 0);
-      if (mid && tot[mid]) {
-        tot[mid].total += amt;
-        tot[mid].count++;
-      }
-      if (ex.id) countedRefs.add(ex.id);
-      const fixName = f ? f.name : (ex.name || '固定支出');
-      recordList.push({
-        id: ex.id,
-        date: ex.date || (ex.createdAt ? new Date(ex.createdAt).toISOString().slice(0, 10) : tod()),
-        memberId: mid,
-        memberName: mName(mid || ex.paidBy || (f ? f.paidBy : null)),
-        name: fixName.includes('（固定）') ? fixName : fixName + '（固定）',
-        amount: amt,
-        note: ex.note || (f ? (f.location ? '📍 ' + f.location : '') : ''),
-        photo: ex.photo || (f ? f.photo : null),
-        type: 'fixed',
-        fixedId: ex.fixedId,
-        rawObj: ex
-      });
+  // 2. 固定支出代繳/扣款 (D.fixedExecutions - 依當月篩選)
+  execs().filter(ex => ex.done && (ex.date || '').startsWith(curMo)).forEach(ex => {
+    const f = D.fixedItems[ex.fixedId];
+    const mid = findMemberId(ex.paidBy || (f ? f.paidBy : null));
+    const amt = typeof ex.amount === 'number' ? ex.amount : (f ? f.amount : 0);
+    if (mid && tot[mid]) {
+      tot[mid].total += amt;
+      tot[mid].count++;
     }
+    if (ex.id) countedRefs.add(ex.id);
+    const fixName = f ? f.name : (ex.name || '固定支出');
+    recordList.push({
+      id: ex.id,
+      date: ex.date || (ex.createdAt ? new Date(ex.createdAt).toISOString().slice(0, 10) : tod()),
+      memberId: mid,
+      memberName: mName(mid || ex.paidBy || (f ? f.paidBy : null)),
+      name: fixName.includes('（固定）') ? fixName : fixName + '（固定）',
+      amount: amt,
+      note: ex.note || (f ? (f.location ? '📍 ' + f.location : '') : ''),
+      photo: ex.photo || (f ? f.photo : null),
+      type: 'fixed',
+      fixedId: ex.fixedId,
+      rawObj: ex
+    });
   });
 
-  // 3. 其他成員交易 (D.transactions - 補強未重複採計的經手紀錄)
-  txs().forEach(t => {
+  // 3. 其他成員交易 (D.transactions - 補強未重複採計的經手紀錄，依當月篩選)
+  txs().filter(t => (t.date || '').startsWith(curMo)).forEach(t => {
     if (t.ref && countedRefs.has(t.ref)) return;
     const mid = findMemberId(t.paidBy || t.memberId || t.member);
     if (!mid) return;
@@ -1207,7 +1214,7 @@ function renderMembers() {
       <div class="mcard">
         <div class="mcard-av" style="background:${m.color}22;color:${m.color}">${(m.name || '?')[0]}</div>
         <div class="mcard-name">${m.name}</div>
-        <div class="mcard-sub">累計 ${tot[m.id]?.count || 0} 次繳款/代繳</div>
+        <div class="mcard-sub">當月累計 ${tot[m.id]?.count || 0} 次繳款/代繳</div>
         <div style="font-size:22px;font-weight:900;color:${m.color}">NT$${fmt(tot[m.id]?.total)}</div>
       </div>`).join('');
   }
