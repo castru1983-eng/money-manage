@@ -982,6 +982,18 @@ function renderAppUI() {
   D.transactions = D.transactions || {};
   D.fixedItems = D.fixedItems || {};
   D.fixedExecutions = D.fixedExecutions || {};
+
+  // 自動清理備註為 TEST 的測試紀錄
+  Object.entries(D.deposits).forEach(([did, d]) => {
+    if (d && d.note && d.note.trim().toUpperCase() === 'TEST') {
+      D.balance = Math.max(0, (D.balance || 0) - (d.amount || 0));
+      delete D.deposits[did];
+      const txEntry = Object.entries(D.transactions).find(([txId, t]) => t.ref === did);
+      if (txEntry) delete D.transactions[txEntry[0]];
+      needUpdate = true;
+    }
+  });
+
   Object.keys(D.members).forEach((id, idx) => {
     const m = D.members[id];
     if (!m.username) { m.username = idx === 0 ? 'admin' : (idx === 1 ? 'user' : 'user' + (idx + 1)); needUpdate = true; }
