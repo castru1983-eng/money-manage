@@ -353,8 +353,8 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   </div>
   <div class="g3 mb6" id="mcards"></div>
   <div class="card">
-    <div class="ct">繳款紀錄</div>
-    <div class="tw"><table><thead><tr><th>日期</th><th>成員</th><th>金額</th><th>備註</th><th>操作</th></tr></thead><tbody id="dep-tbody"></tbody></table></div>
+    <div class="ct">繳款與扣款紀錄</div>
+    <div class="tw"><table><thead><tr><th>日期</th><th>成員</th><th>項目</th><th>金額</th><th>備註</th><th>操作</th></tr></thead><tbody id="dep-tbody"></tbody></table></div>
   </div>
 </div>
 
@@ -1114,56 +1114,129 @@ function renderMembers() {
   const tot = {};
   ms.forEach(m => { tot[m.id] = { total: 0, count: 0 }; });
 
-  const countedDepRefs = new Set();
+  const recordList = [];
+  const countedRefs = new Set();
 
+  // 1. 成員繳款 (D.deposits)
   deps().forEach(d => {
     const mid = findMemberId(d.memberId || d.member || d.paidBy);
+    const amt = d.amount || 0;
     if (mid && tot[mid]) {
-      tot[mid].total += (d.amount || 0);
+      tot[mid].total += amt;
       tot[mid].count++;
     }
-    if (d.id) countedDepRefs.add(d.id);
+    if (d.id) countedRefs.add(d.id);
+    recordList.push({
+      id: d.id,
+      date: d.date || (d.createdAt ? new Date(d.createdAt).toISOString().slice(0, 10) : tod()),
+      memberId: mid,
+      memberName: mName(mid || d.memberId || d.member || d.paidBy),
+      name: '成員繳款',
+      amount: amt,
+      note: d.note || '',
+      photo: d.photo || null,
+      type: 'deposit',
+      rawObj: d
+    });
   });
 
-  txs().forEach(t => {
-    if (t.type === 'in') {
-      const mid = findMemberId(t.paidBy || t.memberId || t.member);
+  // 2. 固定支出代繳/扣款 (D.fixedExecutions)
+  execs().forEach(ex => {
+    if (ex.done) {
+      const f = D.fixedItems[ex.fixedId];
+      const mid = findMemberId(ex.paidBy || (f ? f.paidBy : null));
+      const amt = typeof ex.amount === 'number' ? ex.amount : (f ? f.amount : 0);
       if (mid && tot[mid]) {
-        if (!t.ref || !countedDepRefs.has(t.ref)) {
-          tot[mid].total += (t.amount || 0);
-          tot[mid].count++;
-          if (t.ref) countedDepRefs.add(t.ref);
-        }
+        tot[mid].total += amt;
+        tot[mid].count++;
       }
+      if (ex.id) countedRefs.add(ex.id);
+      const fixName = f ? f.name : (ex.name || '固定支出');
+      recordList.push({
+        id: ex.id,
+        date: ex.date || (ex.createdAt ? new Date(ex.createdAt).toISOString().slice(0, 10) : tod()),
+        memberId: mid,
+        memberName: mName(mid || ex.paidBy || (f ? f.paidBy : null)),
+        name: fixName.includes('（固定）') ? fixName : fixName + '（固定）',
+        amount: amt,
+        note: ex.note || (f ? (f.location ? '📍 ' + f.location : '') : ''),
+        photo: ex.photo || (f ? f.photo : null),
+        type: 'fixed',
+        fixedId: ex.fixedId,
+        rawObj: ex
+      });
     }
   });
 
+  // 3. 其他成員交易 (D.transactions - 補強未重複採計的經手紀錄)
+  txs().forEach(t => {
+    if (t.ref && countedRefs.has(t.ref)) return;
+    const mid = findMemberId(t.paidBy || t.memberId || t.member);
+    if (!mid) return;
+    const amt = t.amount || 0;
+    if (t.type === 'in') {
+      if (tot[mid]) {
+        tot[mid].total += amt;
+        tot[mid].count++;
+      }
+      recordList.push({
+        id: t.id,
+        date: t.date || tod(),
+        memberId: mid,
+        memberName: mName(mid),
+        name: t.name || '資金注入',
+        amount: amt,
+        note: t.note || '',
+        photo: t.photo || null,
+        type: 'in',
+        rawObj: t
+      });
+    }
+  });
+
+  // 渲染成員卡片
   const elMcards = document.getElementById('mcards');
   if (elMcards) {
     elMcards.innerHTML = ms.map(m => `
       <div class="mcard">
         <div class="mcard-av" style="background:${m.color}22;color:${m.color}">${(m.name || '?')[0]}</div>
         <div class="mcard-name">${m.name}</div>
-        <div class="mcard-sub">累計 ${tot[m.id]?.count || 0} 次繳款</div>
+        <div class="mcard-sub">累計 ${tot[m.id]?.count || 0} 次繳款/代繳</div>
         <div style="font-size:22px;font-weight:900;color:${m.color}">NT$${fmt(tot[m.id]?.total)}</div>
       </div>`).join('');
   }
 
-  const dd = deps().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  // 渲染成員繳款與扣款明細表
+  recordList.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const elDepTbody = document.getElementById('dep-tbody');
   if (elDepTbody) {
-    elDepTbody.innerHTML = dd.length === 0
-      ? `<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:26px">尚無繳款紀錄</td></tr>`
-      : dd.map(d => `<tr>
-          <td>${d.date || '-'}</td>
-          <td><span class="badge b-blue">${mName(d.memberId || d.member || d.paidBy)}</span></td>
-          <td style="font-weight:900;color:var(--green)">NT$${fmt(d.amount)}</td>
-          <td style="color:var(--t3)">${d.note || '-'}${d.photo ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${d.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>` : ''}</td>
-          <td>${isAdm ? `<div class="flex g2i">
-            <button class="btn btn-sec btn-icon btn-sm" onclick="openDeposit('${d.id}')" title="編輯/補傳照片">✏️</button>
-            <button class="btn btn-d btn-icon btn-sm" onclick="delDeposit('${d.id}')" title="刪除">🗑</button>
-          </div>` : '<span style="color:var(--t3);font-size:12px">僅供檢視</span>'}</td>
-        </tr>`).join('');
+    elDepTbody.innerHTML = recordList.length === 0
+      ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無繳款或代繳紀錄</td></tr>`
+      : recordList.map(r => {
+          let editBtn = '';
+          if (isAdm) {
+            if (r.type === 'deposit') {
+              editBtn = `<button class="btn btn-sec btn-icon btn-sm" onclick="openDeposit('${r.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delDeposit('${r.id}')" title="刪除紀錄">🗑</button>`;
+            } else if (r.type === 'fixed') {
+              editBtn = `<button class="btn btn-sec btn-icon btn-sm" onclick="openExec('${r.fixedId}','${r.id}')" title="編輯固定支出扣款">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delExec('${r.id}')" title="刪除扣款紀錄">🗑</button>`;
+            } else {
+              editBtn = `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${r.id}')" title="編輯紀錄">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delTx('${r.id}')" title="刪除紀錄">🗑</button>`;
+            }
+          } else {
+            editBtn = `<span style="color:var(--t3);font-size:12px">僅供檢視</span>`;
+          }
+
+          const badgeType = r.type === 'deposit' ? 'b-green' : (r.type === 'fixed' ? 'b-amber' : 'b-blue');
+
+          return `<tr>
+            <td>${r.date}</td>
+            <td><span class="badge b-blue">${r.memberName}</span></td>
+            <td><span class="badge ${badgeType}">${r.name}</span></td>
+            <td style="font-weight:900;color:var(--green)">NT$${fmt(r.amount)}</td>
+            <td style="color:var(--t3)">${r.note || '-'}${r.photo ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${r.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>` : ''}</td>
+            <td><div class="flex g2i">${editBtn}</div></td>
+          </tr>`;
+        }).join('');
   }
 }
 
@@ -1333,27 +1406,15 @@ async function execAllPendingFixed() {
 
   try {
     for (const f of pending) {
-      const r = await rRef.child('balance').transaction(b => (b || 0) - f.amount);
-      const nb = r.snapshot.val();
-      const er = rRef.child('fixedExecutions').push();
-      const exData = { fixedId: f.id, name: f.name, amount: f.amount, month: m, done: true, location: f.location || 'P2', date: tod(), paidBy: CFG.currentMemberId || null, note: '一鍵扣款', photo: null, createdAt: Date.now() };
-      await er.set(exData);
-      await rRef.child('transactions').push({
-        type: 'out',
-        name: f.name + '（固定）',
-        category: f.name || '固定支出',
-        location: f.location || 'P2',
-        amount: f.amount,
-        date: tod(),
-        paidBy: CFG.currentMemberId || null,
-        note: '一鍵扣款',
-        photo: null,
-        ref: er.key,
-        balanceAfter: nb,
-        createdAt: Date.now()
-      });
+      D.balance = (D.balance || 0) - f.amount;
+      const key = 'ex_' + gid();
+      const payer = f.paidBy || CFG.currentMemberId || null;
+      D.fixedExecutions[key] = { id: key, fixedId: f.id, name: f.name, amount: f.amount, month: m, done: true, location: f.location || 'P2', date: tod(), paidBy: payer, note: '一鍵扣款', photo: null, createdAt: Date.now() };
+      const txKey = 'tx_' + gid();
+      D.transactions[txKey] = { id: txKey, type: 'out', name: f.name + '（固定）', category: f.name || '固定支出', location: f.location || 'P2', amount: f.amount, date: tod(), paidBy: payer, note: '一鍵扣款', photo: null, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
     }
-    toast(`已完成 ${pending.length} 筆固定扣款，總計 NT$${fmt(total)} 已寫入帳目明細！`, 'success');
+    toast(`已完成 ${pending.length} 筆固定扣款，總計 NT$${fmt(total)} 已寫入帳目明細與成員統計！`, 'success');
+    await saveData();
   } catch(e) {
     toast('執行失敗：' + e.message, 'error');
   }
@@ -2030,7 +2091,8 @@ function openExec(fid, exId){
     }
   } else {
     document.getElementById('exec-loc').value = f.location || 'P2';
-    if(CFG.currentMemberId)document.getElementById('exec-paid').value=CFG.currentMemberId;
+    const defaultPayer = f.paidBy || CFG.currentMemberId || '';
+    if(defaultPayer) document.getElementById('exec-paid').value = findMemberId(defaultPayer) || defaultPayer;
     document.getElementById('exec-date').value=tod();
     document.getElementById('exec-note').value='';
     clearPhoto('exec-photo-input', 'exec-photo-prev', 'exec-photo-val');
