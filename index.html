@@ -347,9 +347,6 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 <div class="page" id="page-members">
   <div class="ph">
     <div><div class="ph-title">👥 成員管理</div><div class="ph-sub">成員繳款紀錄</div></div>
-    <div>
-      <button class="btn btn-s" id="btn-add-dep" onclick="openDeposit()">📥 新增成員繳款</button>
-    </div>
   </div>
   <div class="g3 mb6" id="mcards"></div>
   <div class="card">
@@ -1107,9 +1104,6 @@ function renderDash() {
 // ═══════════════════════════════════════════════
 function renderMembers() {
   const isAdm = isAdmin();
-  const elBtnAddDep = document.getElementById('btn-add-dep');
-  if (elBtnAddDep) elBtnAddDep.style.display = isAdm ? 'inline-flex' : 'none';
-
   const ms = mems();
   const tot = {};
   ms.forEach(m => { tot[m.id] = { total: 0, count: 0 }; });
