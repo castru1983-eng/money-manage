@@ -772,8 +772,22 @@ const txs = () => {
 const deps = () => Object.entries(D.deposits || {}).map(([id,d])=>({id,...d}));
 const fixes = () => Object.entries(D.fixedItems || {}).map(([id,f])=>({id,...f}));
 const execs = () => Object.entries(D.fixedExecutions || {}).map(([id,e])=>({id,...e}));
-const mName = id => id && D.members[id] ? D.members[id].name : '-';
-const mColor = id => D.members[id] ? D.members[id].color : '#63b3ed';
+function findMemberId(identifier) {
+  if (!identifier) return null;
+  if (D.members && D.members[identifier]) return identifier;
+  const found = Object.entries(D.members || {}).find(([id, m]) => id === identifier || m.name === identifier || m.username === identifier);
+  return found ? found[0] : null;
+}
+const mName = id => {
+  if (!id) return '-';
+  if (D.members && D.members[id]) return D.members[id].name;
+  const found = Object.values(D.members || {}).find(m => m.name === id || m.username === id);
+  return found ? found.name : id;
+};
+const mColor = id => {
+  const mid = findMemberId(id);
+  return (mid && D.members[mid]) ? D.members[mid].color : '#63b3ed';
+};
 const catIcon = c => ICONS[c]||'📌';
 
 // ═══════════════════════════════════════════════
@@ -889,6 +903,7 @@ function init() {
 }
 
 async function saveData() {
+  renderAppUI();
   if (!supabaseClient || !CFG.roomCode) return;
   try {
     await supabaseClient.from('rooms').upsert({
@@ -1102,19 +1117,23 @@ function renderMembers() {
   const countedDepRefs = new Set();
 
   deps().forEach(d => {
-    if (d.memberId && tot[d.memberId]) {
-      tot[d.memberId].total += (d.amount || 0);
-      tot[d.memberId].count++;
+    const mid = findMemberId(d.memberId || d.member || d.paidBy);
+    if (mid && tot[mid]) {
+      tot[mid].total += (d.amount || 0);
+      tot[mid].count++;
     }
     if (d.id) countedDepRefs.add(d.id);
   });
 
   txs().forEach(t => {
-    if (t.type === 'in' && t.paidBy && tot[t.paidBy]) {
-      if (!t.ref || !countedDepRefs.has(t.ref)) {
-        tot[t.paidBy].total += (t.amount || 0);
-        tot[t.paidBy].count++;
-        if (t.ref) countedDepRefs.add(t.ref);
+    if (t.type === 'in') {
+      const mid = findMemberId(t.paidBy || t.memberId || t.member);
+      if (mid && tot[mid]) {
+        if (!t.ref || !countedDepRefs.has(t.ref)) {
+          tot[mid].total += (t.amount || 0);
+          tot[mid].count++;
+          if (t.ref) countedDepRefs.add(t.ref);
+        }
       }
     }
   });
@@ -1130,14 +1149,14 @@ function renderMembers() {
       </div>`).join('');
   }
 
-  const dd = deps().sort((a, b) => b.date.localeCompare(a.date));
+  const dd = deps().sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   const elDepTbody = document.getElementById('dep-tbody');
   if (elDepTbody) {
     elDepTbody.innerHTML = dd.length === 0
       ? `<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:26px">尚無繳款紀錄</td></tr>`
       : dd.map(d => `<tr>
-          <td>${d.date}</td>
-          <td><span class="badge b-blue">${mName(d.memberId)}</span></td>
+          <td>${d.date || '-'}</td>
+          <td><span class="badge b-blue">${mName(d.memberId || d.member || d.paidBy)}</span></td>
           <td style="font-weight:900;color:var(--green)">NT$${fmt(d.amount)}</td>
           <td style="color:var(--t3)">${d.note || '-'}${d.photo ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${d.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>` : ''}</td>
           <td>${isAdm ? `<div class="flex g2i">
@@ -1872,7 +1891,8 @@ function openDeposit(did){
   if (isE) {
     const d = D.deposits[did];
     if (d) {
-      document.getElementById('d-mem').value = d.memberId || '';
+      const mid = findMemberId(d.memberId || d.member || d.paidBy);
+      document.getElementById('d-mem').value = mid || '';
       document.getElementById('d-amt').value = d.amount || '';
       document.getElementById('d-date').value = d.date || tod();
       document.getElementById('d-loc').value = d.location || '';
@@ -1884,7 +1904,7 @@ function openDeposit(did){
     document.getElementById('d-date').value = tod();
     document.getElementById('d-note').value = '';
     clearPhoto('d-photo-input', 'd-photo-prev', 'd-photo-val');
-    if(CFG.currentMemberId)document.getElementById('d-mem').value=CFG.currentMemberId;
+    if(CFG.currentMemberId) document.getElementById('d-mem').value = findMemberId(CFG.currentMemberId) || CFG.currentMemberId;
   }
   openM('mo-dep');
 }
