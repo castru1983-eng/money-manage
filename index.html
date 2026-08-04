@@ -941,6 +941,8 @@ function init() {
 }
 
 async function saveData() {
+  // Stamp a local timestamp so we can compare versions later
+  D._localUpdatedAt = Date.now();
   renderAppUI();
   // Always save to localStorage first (reliable fallback)
   if (CFG && CFG.roomCode) {
@@ -959,10 +961,11 @@ async function saveData() {
     });
     if (error) {
       console.error('Supabase save error:', error);
-      // Don't show error toast for invalid key - just silently use localStorage
+      toast('⚠️ 雲端儲存失敗（' + error.message + '），資料已暫存於本機', 'error');
     }
   } catch(e) {
-    toast('Supabase 儲存失敗：' + e.message, 'error');
+    console.error('Supabase save exception:', e);
+    toast('⚠️ 雲端儲存失敗，資料已暫存於本機', 'error');
   }
 }
 
@@ -990,22 +993,51 @@ async function startApp() {
 
     if (CFG.roomCode) {
       try {
+        // Load local cache first
+        let localD = null;
+        try {
+          const cached = localStorage.getItem('sfund_data_' + CFG.roomCode);
+          if (cached) localD = JSON.parse(cached);
+        } catch(e) {}
+
         const { data, error } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).maybeSingle();
         if (error) {
           console.error('Fetch room error:', error);
-          toast('載入雲端資料失敗：' + error.message, 'error');
-          const cached = localStorage.getItem('sfund_data_' + CFG.roomCode);
-          if (cached) { try { D = JSON.parse(cached); } catch(e){} }
+          // Supabase read failed - use local cache
+          if (localD) D = localD;
         } else if (!data) {
-          await initRoom();
+          // Room doesn't exist in Supabase - use local or init
+          if (localD && localD.members && Object.keys(localD.members).length > 0) {
+            D = localD;
+            // Push local data to Supabase to create the room
+            await supabaseClient.from('rooms').upsert({ room_code: CFG.roomCode, data: D, updated_at: new Date().toISOString() });
+          } else {
+            await initRoom();
+          }
         } else if (data && data.data) {
-          D = data.data;
-          try { localStorage.setItem('sfund_data_' + CFG.roomCode, JSON.stringify(D)); } catch(e){}
+          const remoteD = data.data;
+          const remoteTs = remoteD._localUpdatedAt || 0;
+          const localTs = (localD && localD._localUpdatedAt) || 0;
+
+          if (localTs > remoteTs) {
+            // Local is NEWER than Supabase - use local and push to Supabase
+            console.log('Local data is newer, syncing to Supabase...');
+            D = localD;
+            await supabaseClient.from('rooms').upsert({ room_code: CFG.roomCode, data: D, updated_at: new Date().toISOString() });
+            toast('已同步本機最新資料到雲端', 'info');
+          } else {
+            // Supabase is up to date - use it
+            D = remoteD;
+            try { localStorage.setItem('sfund_data_' + CFG.roomCode, JSON.stringify(D)); } catch(e){}
+          }
         }
       } catch(eDb) {
         console.warn(eDb);
-        const cached = localStorage.getItem('sfund_data_' + CFG.roomCode);
-        if (cached) { try { D = JSON.parse(cached); } catch(e){} }
+        // Network error - use local cache
+        try {
+          const cached = localStorage.getItem('sfund_data_' + CFG.roomCode);
+          if (cached) D = JSON.parse(cached);
+        } catch(e) {}
       }
     }
     
