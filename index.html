@@ -418,7 +418,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       <div class="card mb4">
         <div class="ct">成員與權限管理 (帳號 / 密碼 / 權限)</div>
         <div id="set-members"></div>
-        <div class="mt4" id="set-add-mem-wrap"><button class="btn btn-sec btn-sm" onclick="addMember()">＋ 新增成員帳號</button></div>
+        <div class="mt4" id="set-add-mem-wrap"><button class="btn btn-p btn-sm" onclick="openAddMemberModal()">＋ 新增成員帳號</button></div>
       </div>
       <div class="card">
         <div class="ct">連線資訊</div>
@@ -603,6 +603,37 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     <div class="mf">
       <button class="btn btn-sec" onclick="closeM('mo-id')">取消</button>
       <button class="btn btn-p" onclick="submitLoginModal()">🔑 登入系統</button>
+    </div>
+  </div>
+</div>
+
+<div class="mo" id="mo-add-mem">
+  <div class="md" style="width:440px">
+    <div class="mh"><div class="mt">👤 新增成員帳號</div><button class="mc" onclick="closeM('mo-add-mem')">✕</button></div>
+    <div class="fg">
+      <label class="fl">成員姓名 / 稱呼</label>
+      <input type="text" class="fc" id="new-mem-name" placeholder="例如：小明"/>
+    </div>
+    <div class="fr">
+      <div class="fg">
+        <label class="fl">登入帳號</label>
+        <input type="text" class="fc" id="new-mem-user" placeholder="例如：ming"/>
+      </div>
+      <div class="fg">
+        <label class="fl">登入密碼</label>
+        <input type="text" class="fc" id="new-mem-pass" placeholder="例如：123456" value="123456"/>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="fl">權限角色</label>
+      <select class="fc" id="new-mem-role">
+        <option value="user">👤 一般使用者 (僅供檢視帳目)</option>
+        <option value="admin">👑 管理者 (具有完整編輯與管理權限)</option>
+      </select>
+    </div>
+    <div class="mf">
+      <button class="btn btn-sec" onclick="closeM('mo-add-mem')">取消</button>
+      <button class="btn btn-p" onclick="submitAddMember()">➕ 確認新增</button>
     </div>
   </div>
 </div>
@@ -893,6 +924,13 @@ function init() {
       CFG = JSON.parse(s);
       if (!CFG.supabaseUrl) CFG.supabaseUrl = DEF_SUPABASE_URL;
       if (!CFG.supabaseKey) CFG.supabaseKey = DEF_SUPABASE_KEY;
+      // Try to load cached data immediately so members are available
+      if (CFG.roomCode) {
+        try {
+          const cached = localStorage.getItem('sfund_data_' + CFG.roomCode);
+          if (cached) D = JSON.parse(cached);
+        } catch(e) {}
+      }
       if (CFG.roomCode && CFG.currentMemberId) {
         startApp();
         return;
@@ -904,13 +942,25 @@ function init() {
 
 async function saveData() {
   renderAppUI();
-  if (!supabaseClient || !CFG.roomCode) return;
+  // Always save to localStorage first (reliable fallback)
+  if (CFG && CFG.roomCode) {
+    try {
+      localStorage.setItem('sfund_data_' + CFG.roomCode, JSON.stringify(D));
+    } catch(e) {}
+  }
+  // Only sync to Supabase if we have a valid JWT key
+  const key = CFG && CFG.supabaseKey;
+  if (!supabaseClient || !CFG.roomCode || !key || !key.startsWith('eyJ')) return;
   try {
-    await supabaseClient.from('rooms').upsert({
+    const { error } = await supabaseClient.from('rooms').upsert({
       room_code: CFG.roomCode,
       data: D,
       updated_at: new Date().toISOString()
     });
+    if (error) {
+      console.error('Supabase save error:', error);
+      // Don't show error toast for invalid key - just silently use localStorage
+    }
   } catch(e) {
     toast('Supabase 儲存失敗：' + e.message, 'error');
   }
@@ -940,13 +990,23 @@ async function startApp() {
 
     if (CFG.roomCode) {
       try {
-        const { data } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).maybeSingle();
-        if (!data) {
+        const { data, error } = await supabaseClient.from('rooms').select('data').eq('room_code', CFG.roomCode).maybeSingle();
+        if (error) {
+          console.error('Fetch room error:', error);
+          toast('載入雲端資料失敗：' + error.message, 'error');
+          const cached = localStorage.getItem('sfund_data_' + CFG.roomCode);
+          if (cached) { try { D = JSON.parse(cached); } catch(e){} }
+        } else if (!data) {
           await initRoom();
         } else if (data && data.data) {
           D = data.data;
+          try { localStorage.setItem('sfund_data_' + CFG.roomCode, JSON.stringify(D)); } catch(e){}
         }
-      } catch(eDb) { console.warn(eDb); }
+      } catch(eDb) {
+        console.warn(eDb);
+        const cached = localStorage.getItem('sfund_data_' + CFG.roomCode);
+        if (cached) { try { D = JSON.parse(cached); } catch(e){} }
+      }
     }
     
     renderAppUI();
@@ -967,6 +1027,9 @@ function listen() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: 'room_code=eq.' + CFG.roomCode }, (payload) => {
         if (payload.new && payload.new.data) {
           D = payload.new.data;
+          if (CFG && CFG.roomCode) {
+            try { localStorage.setItem('sfund_data_' + CFG.roomCode, JSON.stringify(D)); } catch(e){}
+          }
           renderAppUI();
         }
       })
@@ -1833,11 +1896,40 @@ async function chColor(id,c){
   if (!isAdmin()) return toast('權限不足：僅管理者可修改顏色', 'error');
   if(D.members[id]) { D.members[id].color = c; await saveData(); }
 }
-async function addMember(){
+function openAddMemberModal() {
   if (!isAdmin()) return toast('權限不足：僅管理者可新增成員', 'error');
-  const n=prompt('輸入新成員名稱：');if(!n?.trim())return;
-  const id=gid();
-  D.members[id] = { id, name:n.trim(), username: 'user_' + id.slice(0,4), password: '123', role: 'user', color:COLORS[mems().length%COLORS.length], createdAt:Date.now() };
+  document.getElementById('new-mem-name').value = '';
+  document.getElementById('new-mem-user').value = '';
+  document.getElementById('new-mem-pass').value = '123456';
+  document.getElementById('new-mem-role').value = 'user';
+  openM('mo-add-mem');
+}
+
+async function submitAddMember() {
+  if (!isAdmin()) return toast('權限不足：僅管理者可新增成員', 'error');
+  const name = document.getElementById('new-mem-name').value.trim();
+  let username = document.getElementById('new-mem-user').value.trim();
+  const password = document.getElementById('new-mem-pass').value.trim();
+  const role = document.getElementById('new-mem-role').value;
+
+  if (!name) return toast('請輸入成員姓名 / 稱呼', 'error');
+  const id = gid();
+  if (!username) username = 'user_' + id.slice(0, 4);
+  if (!password) return toast('請輸入密碼', 'error');
+
+  D.members = D.members || {};
+  D.members[id] = {
+    id,
+    name,
+    username,
+    password,
+    role,
+    color: COLORS[mems().length % COLORS.length],
+    createdAt: Date.now()
+  };
+
+  closeM('mo-add-mem');
+  toast(`已成功新增成員「${name}」！`, 'success');
   await saveData();
 }
 async function delMem(id){
@@ -2344,40 +2436,110 @@ async function showSetup() {
   document.getElementById('setup-screen').style.display = 'flex';
   document.getElementById('app-screen').style.display = 'none';
 
-  _supabaseUrl = DEF_SUPABASE_URL;
-  _supabaseKey = DEF_SUPABASE_KEY;
-  _room = 'main';
+  // Step 1: Determine room code and credentials
+  let currentRoom = 'main';
+  let useUrl = DEF_SUPABASE_URL;
+  let useKey = DEF_SUPABASE_KEY;
 
   try {
+    const savedStr = localStorage.getItem(LK);
+    if (savedStr) {
+      const parsed = JSON.parse(savedStr);
+      if (parsed.roomCode) currentRoom = parsed.roomCode;
+      if (parsed.supabaseUrl) useUrl = sanitizeSupabaseUrl(parsed.supabaseUrl);
+      if (parsed.supabaseKey) useKey = parsed.supabaseKey;
+    }
+  } catch(e){}
+
+  // Also prefer CFG if it has a roomCode
+  if (CFG && CFG.roomCode) {
+    currentRoom = CFG.roomCode;
+    if (CFG.supabaseUrl) useUrl = sanitizeSupabaseUrl(CFG.supabaseUrl);
+    if (CFG.supabaseKey) useKey = CFG.supabaseKey;
+  }
+
+  _supabaseUrl = useUrl;
+  _supabaseKey = useKey;
+  _room = currentRoom;
+
+  // Step 2: Try loading from localStorage cache FIRST (instant, no network)
+  let loadedFromCache = false;
+  try {
+    const cached = localStorage.getItem('sfund_data_' + currentRoom);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed && parsed.members && Object.keys(parsed.members).length > 0) {
+        D = parsed;
+        loadedFromCache = true;
+      }
+    }
+  } catch(e) {}
+
+  // Show members immediately if we have cached data
+  if (loadedFromCache) {
+    fillLoginSelect('s-mid-sel');
+  }
+
+  // Step 3: Try Supabase in background to get fresh data
+  try {
     const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
-    if (sSDK) {
-      const cleanUrl = sanitizeSupabaseUrl(_supabaseUrl);
-      const tmpClient = sSDK.createClient(cleanUrl, _supabaseKey);
-      const { data } = await tmpClient.from('rooms').select('data').eq('room_code', 'main').maybeSingle();
-      if (!data) {
+    if (sSDK && useUrl && useKey && useKey.startsWith('eyJ')) {
+      const cleanUrl = sanitizeSupabaseUrl(useUrl);
+      const tmpClient = sSDK.createClient(cleanUrl, useKey);
+      const { data, error } = await tmpClient.from('rooms').select('data').eq('room_code', currentRoom).maybeSingle();
+      if (error) {
+        console.warn('Supabase fetch error:', error.message);
+      } else if (!data) {
+        // Room does not exist - create it with current D data or defaults
+        if (!D.members || Object.keys(D.members).length === 0) {
+          const ms = {};
+          const m1 = gid(), m2 = gid();
+          ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
+          ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
+          D = { balance: 0, members: ms, categories: DEF_CATS, locations: DEF_LOCS, transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}, settings: { alertDays: 3 } };
+        }
+        await tmpClient.from('rooms').upsert({ room_code: currentRoom, data: D, updated_at: new Date().toISOString() });
+        try { localStorage.setItem('sfund_data_' + currentRoom, JSON.stringify(D)); } catch(e){}
+        fillLoginSelect('s-mid-sel');
+      } else if (data && data.data) {
+        D = data.data;
+        try { localStorage.setItem('sfund_data_' + currentRoom, JSON.stringify(D)); } catch(e){}
+        fillLoginSelect('s-mid-sel');
+      }
+    } else if (!loadedFromCache) {
+      // Supabase not configured or invalid key - use local defaults
+      if (!D.members || Object.keys(D.members).length === 0) {
+        const cached = localStorage.getItem('sfund_data_' + currentRoom);
+        if (cached) {
+          try { D = JSON.parse(cached); } catch(e){}
+        }
+        // Still empty? Create defaults
+        if (!D.members || Object.keys(D.members).length === 0) {
+          const ms = {};
+          const m1 = gid(), m2 = gid();
+          ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
+          ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
+          D = { balance: 0, members: ms, categories: DEF_CATS, locations: DEF_LOCS, transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}, settings: { alertDays: 3 } };
+          try { localStorage.setItem('sfund_data_' + currentRoom, JSON.stringify(D)); } catch(e){}
+        }
+      }
+      fillLoginSelect('s-mid-sel');
+    }
+  } catch(e) {
+    console.warn('showSetup Supabase error:', e);
+    if (!loadedFromCache) {
+      // Last resort: create defaults
+      if (!D.members || Object.keys(D.members).length === 0) {
         const ms = {};
         const m1 = gid(), m2 = gid();
         ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
         ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
-        D = {
-          balance: 0,
-          members: ms,
-          categories: DEF_CATS,
-          locations: DEF_LOCS,
-          transactions: {},
-          fixedItems: {},
-          fixedExecutions: {},
-          deposits: {},
-          settings: { alertDays: 3 }
-        };
-        await tmpClient.from('rooms').upsert({ room_code: 'main', data: D, updated_at: new Date().toISOString() });
-      } else if (data && data.data) {
-        D = data.data;
+        D = { balance: 0, members: ms, categories: DEF_CATS, locations: DEF_LOCS, transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}, settings: { alertDays: 3 } };
+        try { localStorage.setItem('sfund_data_' + currentRoom, JSON.stringify(D)); } catch(e2){}
       }
+      fillLoginSelect('s-mid-sel');
     }
-  } catch(e) { console.warn(e); }
-
-  fillLoginSelect('s-mid-sel');
+  }
 }
 function toggleHelp(){const h=document.getElementById('help-box');h.style.display=h.style.display==='none'?'block':'none';}
 function goStep(n){
@@ -2493,14 +2655,17 @@ function step3() {
     return toast('密碼錯誤！請重新輸入', 'error');
   }
 
+  const roomCode = _room || 'main';
   CFG = {
     supabaseUrl: sanitizeSupabaseUrl(_supabaseUrl || DEF_SUPABASE_URL),
     supabaseKey: _supabaseKey || DEF_SUPABASE_KEY,
-    roomCode: _room || '1234',
+    roomCode: roomCode,
     currentMemberId: mid,
     role: m.role || 'user'
   };
   localStorage.setItem(LK, JSON.stringify(CFG));
+  // Always save current data to localStorage so it persists across login/logout
+  try { localStorage.setItem('sfund_data_' + roomCode, JSON.stringify(D)); } catch(e) {}
 
   const setupEl = document.getElementById('setup-screen');
   if (setupEl) setupEl.style.display = 'none';
