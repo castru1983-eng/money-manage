@@ -461,7 +461,8 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         </div>
       </div>
       <div class="card">
-        <div class="ct">資料</div>
+        <div class="ct">資料與餘額管理</div>
+        <div class="srow"><div><div class="srow-label">總餘額歸零</div><div class="srow-sub">將共用金總餘額重設為 NT$ 0</div></div><button class="btn btn-d btn-sm" onclick="resetBalanceZero()">💰 歸零餘額</button></div>
         <div class="srow"><div><div class="srow-label">匯出備份</div><div class="srow-sub">下載 JSON 備份</div></div><button class="btn btn-sec btn-sm" onclick="exportData()">📥 匯出</button></div>
       </div>
     </div>
@@ -1083,16 +1084,11 @@ function renderAppUI() {
   D.fixedItems = D.fixedItems || {};
   D.fixedExecutions = D.fixedExecutions || {};
 
-  // 自動清理備註為 TEST 的測試紀錄
-  Object.entries(D.deposits).forEach(([did, d]) => {
-    if (d && d.note && d.note.trim().toUpperCase() === 'TEST') {
-      D.balance = Math.max(0, (D.balance || 0) - (d.amount || 0));
-      delete D.deposits[did];
-      const txEntry = Object.entries(D.transactions).find(([txId, t]) => t.ref === did);
-      if (txEntry) delete D.transactions[txEntry[0]];
-      needUpdate = true;
-    }
-  });
+  // 如果總餘額仍為初始 15000，自動清零
+  if (D.balance === 15000) {
+    D.balance = 0;
+    needUpdate = true;
+  }
 
   Object.keys(D.members).forEach((id, idx) => {
     const m = D.members[id];
@@ -2001,6 +1997,13 @@ async function delLoc(i){
   if(!confirm(`確定要刪除「${locName||'此地點'}」這個地點場所？`)) return;
   D.locations = curLocs.filter((_,j)=>j!==i);
   toast(`已刪除地點「${locName||''}」`, 'info');
+  await saveData();
+}
+async function resetBalanceZero(){
+  if (!isAdmin()) return toast('權限不足：僅管理者可重設餘額', 'error');
+  if(!confirm('確定要將共用金總餘額重設為 NT$ 0 嗎？')) return;
+  D.balance = 0;
+  toast('已成功將共用金總餘額清零！', 'success');
   await saveData();
 }
 function resetConn(){if(!confirm('確定重設連線？'))return;localStorage.removeItem(LK);location.reload();}
