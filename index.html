@@ -948,9 +948,9 @@ async function saveData() {
       localStorage.setItem('sfund_data_' + CFG.roomCode, JSON.stringify(D));
     } catch(e) {}
   }
-  // Only sync to Supabase if we have a valid JWT key
+  // Sync to Supabase if client is available
   const key = CFG && CFG.supabaseKey;
-  if (!supabaseClient || !CFG.roomCode || !key || !key.startsWith('eyJ')) return;
+  if (!supabaseClient || !CFG.roomCode || !key) return;
   try {
     const { error } = await supabaseClient.from('rooms').upsert({
       room_code: CFG.roomCode,
@@ -2483,12 +2483,13 @@ async function showSetup() {
   // Step 3: Try Supabase in background to get fresh data
   try {
     const sSDK = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
-    if (sSDK && useUrl && useKey && useKey.startsWith('eyJ')) {
+    if (sSDK && useUrl && useKey) {
       const cleanUrl = sanitizeSupabaseUrl(useUrl);
       const tmpClient = sSDK.createClient(cleanUrl, useKey);
       const { data, error } = await tmpClient.from('rooms').select('data').eq('room_code', currentRoom).maybeSingle();
       if (error) {
         console.warn('Supabase fetch error:', error.message);
+        // Supabase failed, already showing cached data if available
       } else if (!data) {
         // Room does not exist - create it with current D data or defaults
         if (!D.members || Object.keys(D.members).length === 0) {
