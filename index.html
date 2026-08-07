@@ -368,7 +368,20 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     </div>
   </div>
   <div class="card">
-    <div class="ct">固定支出清單</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div class="tab-group" style="display:flex;gap:6px;background:rgba(0,0,0,0.35);padding:4px;border-radius:var(--rsm);border:1px solid var(--border)">
+        <button class="tab-btn active" id="tab-fix-unpaid" onclick="setFixedTab('unpaid')" style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent;background:rgba(246,173,85,0.18);color:var(--amber);transition:all var(--tr)">
+          ⏳ 未繳款 <span id="cnt-fix-unpaid" class="badge b-amber" style="margin-left:4px;font-size:10px">0</span>
+        </button>
+        <button class="tab-btn" id="tab-fix-paid" onclick="setFixedTab('paid')" style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--t3);transition:all var(--tr)">
+          ✅ 本月已繳款 <span id="cnt-fix-paid" class="badge b-green" style="margin-left:4px;font-size:10px">0</span>
+        </button>
+        <button class="tab-btn" id="tab-fix-all" onclick="setFixedTab('all')" style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--t3);transition:all var(--tr)">
+          📋 全部項目 <span id="cnt-fix-all" class="badge b-blue" style="margin-left:4px;font-size:10px">0</span>
+        </button>
+      </div>
+      <div class="ct" style="margin-bottom:0">固定支出清單</div>
+    </div>
     <div class="tw"><table><thead><tr><th>項目</th><th>地點</th><th>金額/月</th><th>繳款最後期限</th><th>本月繳款狀態</th><th>操作</th></tr></thead><tbody id="fix-tbody"></tbody></table></div>
   </div>
 </div>
@@ -1397,6 +1410,13 @@ function updateNavBadges() {
   }
 }
 
+let curFixedTab = 'unpaid';
+
+function setFixedTab(tab) {
+  curFixedTab = tab;
+  renderFixed();
+}
+
 function renderFixed() {
   updateNavBadges();
   const isAdm = isAdmin();
@@ -1405,56 +1425,98 @@ function renderFixed() {
   const elAddFix = document.getElementById('btn-add-fix');
   if (elAddFix) elAddFix.style.display = isAdm ? 'inline-flex' : 'none';
 
-  const fs=fixes();
-  const m=mon();
+  const allFs = fixes().filter(f => f.active !== false);
+  const m = mon();
   const alertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
   const today = new Date(); today.setHours(0,0,0,0);
 
-  document.getElementById('fix-tbody').innerHTML = fs.length===0
-    ? `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:26px">尚無固定支出</td></tr>`
-    : fs.map(f=>{
-        const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
-        const done=ex&&ex.done;
-        let statusHtml = '';
-        if (done) {
-          statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date}${ex.paidBy ? ' · ' + mName(ex.paidBy) : ''})</span>`;
-        } else {
-          if (!isAdm) {
-            statusHtml = `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`;
-          } else {
-            let diffDays = 999;
-            if (f.dayDate && f.dayDate.includes('-')) {
-              const parts = f.dayDate.split('-');
-              const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-              targetDate.setHours(0,0,0,0);
-              diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
-            } else if (f.day) {
-              const targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
-              targetDate.setHours(0,0,0,0);
-              diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
-            }
+  const paidList = [];
+  const unpaidList = [];
 
-            if (diffDays < 0) {
-              statusHtml = `<button class="btn btn-d btn-sm" onclick="openExec('${f.id}')" title="已超過繳款期限">🚨 已逾期 (${Math.abs(diffDays)}天)</button>`;
-            } else if (diffDays <= alertDays) {
-              statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}')">⚠️ 剩 ${diffDays === 0 ? '今天' : diffDays + ' 天'}到期</button>`;
-            } else {
-              statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
-            }
-          }
+  allFs.forEach(f => {
+    const ex = execs().find(e => e.fixedId === f.id && e.month === m);
+    if (ex && ex.done) {
+      paidList.push({ item: f, ex });
+    } else {
+      unpaidList.push({ item: f, ex: null });
+    }
+  });
+
+  const elCntUnpaid = document.getElementById('cnt-fix-unpaid');
+  if (elCntUnpaid) elCntUnpaid.textContent = unpaidList.length;
+  const elCntPaid = document.getElementById('cnt-fix-paid');
+  if (elCntPaid) elCntPaid.textContent = paidList.length;
+  const elCntAll = document.getElementById('cnt-fix-all');
+  if (elCntAll) elCntAll.textContent = allFs.length;
+
+  ['unpaid', 'paid', 'all'].forEach(t => {
+    const btn = document.getElementById('tab-fix-' + t);
+    if (btn) {
+      const active = curFixedTab === t;
+      btn.style.background = active ? (t === 'paid' ? 'rgba(104,211,145,0.18)' : (t === 'unpaid' ? 'rgba(246,173,85,0.18)' : 'var(--blueG)')) : 'transparent';
+      btn.style.color = active ? (t === 'paid' ? 'var(--green)' : (t === 'unpaid' ? 'var(--amber)' : 'var(--blue)')) : 'var(--t3)';
+      btn.style.borderColor = active ? (t === 'paid' ? 'rgba(104,211,145,0.3)' : (t === 'unpaid' ? 'rgba(246,173,85,0.3)' : 'rgba(99,179,237,0.3)')) : 'transparent';
+    }
+  });
+
+  let displayList = [];
+  if (curFixedTab === 'unpaid') displayList = unpaidList;
+  else if (curFixedTab === 'paid') displayList = paidList;
+  else displayList = allFs.map(f => ({ item: f, ex: execs().find(e => e.fixedId === f.id && e.month === m) }));
+
+  const tbody = document.getElementById('fix-tbody');
+  if (!tbody) return;
+
+  if (displayList.length === 0) {
+    let emptyMsg = '尚無固定支出項目';
+    if (curFixedTab === 'unpaid') emptyMsg = '🎉 太棒了！本月無待繳款項目，所有固定支出皆已完成扣款！';
+    else if (curFixedTab === 'paid') emptyMsg = '本月尚無已繳款紀錄';
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:28px">${emptyMsg}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = displayList.map(({ item: f, ex }) => {
+    const done = ex && ex.done;
+    let statusHtml = '';
+    if (done) {
+      statusHtml = `<span class="badge b-green">✓ 已繳款 (${ex.date}${ex.paidBy ? ' · ' + mName(ex.paidBy) : ''})</span>`;
+    } else {
+      if (!isAdm) {
+        statusHtml = `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`;
+      } else {
+        let diffDays = 999;
+        if (f.dayDate && f.dayDate.includes('-')) {
+          const parts = f.dayDate.split('-');
+          const targetDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          targetDate.setHours(0,0,0,0);
+          diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
+        } else if (f.day) {
+          const targetDate = new Date(today.getFullYear(), today.getMonth(), f.day);
+          targetDate.setHours(0,0,0,0);
+          diffDays = Math.round((targetDate - today) / (1000 * 60 * 60 * 24));
         }
-        return `<tr>
-          <td style="font-weight:700">${f.name}${f.paidBy ? ` <span class="badge b-blue" style="font-size:10px;margin-left:4px">👤 ${mName(f.paidBy)}</span>` : ''}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
-          <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
-          <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
-          <td style="color:var(--t2)">${f.dayDate ? f.dayDate + ' 截止' : (f.day ? '每月 ' + f.day + ' 號前' : '-')}</td>
-          <td>${statusHtml}</td>
-          <td>${isAdm ? `<div class="flex g2i">
-            <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯項目">✏️</button>
-            <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')" title="刪除項目">🗑</button>
-          </div>` : '<span style="color:var(--t3);font-size:12px">僅供檢視</span>'}</td>
-        </tr>`;
-      }).join('');
+
+        if (diffDays < 0) {
+          statusHtml = `<button class="btn btn-d btn-sm" onclick="openExec('${f.id}')" title="已超過繳款期限">🚨 已逾期 (${Math.abs(diffDays)}天)</button>`;
+        } else if (diffDays <= alertDays) {
+          statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}')">⚠️ 剩 ${diffDays === 0 ? '今天' : diffDays + ' 天'}到期</button>`;
+        } else {
+          statusHtml = `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>`;
+        }
+      }
+    }
+    return `<tr>
+      <td style="font-weight:700">${f.name}${f.paidBy ? ` <span class="badge b-blue" style="font-size:10px;margin-left:4px">👤 ${mName(f.paidBy)}</span>` : ''}${f.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${f.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>`:''}</td>
+      <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
+      <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
+      <td style="color:var(--t2)">${f.dayDate ? f.dayDate + ' 截止' : (f.day ? '每月 ' + f.day + ' 號前' : '-')}</td>
+      <td>${statusHtml}</td>
+      <td>${isAdm ? `<div class="flex g2i">
+        <button class="btn btn-sec btn-icon btn-sm" onclick="openFixed('${f.id}')" title="編輯項目">✏️</button>
+        <button class="btn btn-d btn-icon btn-sm" onclick="delFix('${f.id}')" title="刪除項目">🗑</button>
+      </div>` : '<span style="color:var(--t3);font-size:12px">僅供檢視</span>'}</td>
+    </tr>`;
+  }).join('');
 }
 
 async function delFix(id) {
