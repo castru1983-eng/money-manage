@@ -1128,7 +1128,7 @@ async function initRoom() {
     fixedItems: {},
     fixedExecutions: {},
     deposits: {},
-    settings: { alertDays: 3 }
+    settings: {}
   };
   await saveData();
 }
@@ -1397,8 +1397,6 @@ function renderFixed() {
 
   const allFs = fixes().filter(f => f.active !== false);
   const m = mon();
-  const alertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
-  const today = new Date(); today.setHours(0,0,0,0);
 
   const paidList = [];
   const unpaidList = [];
