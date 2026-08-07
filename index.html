@@ -461,23 +461,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
           <button class="btn btn-sec btn-sm" onclick="addLoc()">新增</button>
         </div>
       </div>
-      <div class="card mb4">
-        <div class="ct">🔔 固定支出到期提醒設定</div>
-        <div class="srow">
-          <div>
-            <div class="srow-label">幾天前跳出到期提醒</div>
-            <div class="srow-sub">當有固定支出在此天數內到期或已逾期時，側邊欄「固定支出」選單會顯示 ⚠️ 驚嘆號數量提示</div>
-          </div>
-          <select class="fc" id="set-alert-days" style="width:110px" onchange="setAlertDays(this.value)">
-            <option value="1">1 天前</option>
-            <option value="2">2 天前</option>
-            <option value="3">3 天前</option>
-            <option value="5">5 天前</option>
-            <option value="7">7 天前</option>
-            <option value="10">10 天前</option>
-          </select>
-        </div>
-      </div>
+
       <div class="card">
         <div class="ct">資料與餘額管理</div>
         <div class="srow"><div><div class="srow-label">總餘額歸零</div><div class="srow-sub">將共用金總餘額重設為 NT$ 0</div></div><button class="btn btn-d btn-sm" onclick="resetBalanceZero()">💰 歸零餘額</button></div>
@@ -1931,22 +1915,6 @@ function renderSettings() {
 
   const elInfoMe = document.getElementById('info-me');
   if (elInfoMe) elInfoMe.textContent = mName(CFG.currentMemberId) + (isAdm ? ' (👑 管理者)' : ' (👤 一般使用者)');
-  const curAlertDays = (D.settings && typeof D.settings.alertDays === 'number') ? D.settings.alertDays : 3;
-  const elDays = document.getElementById('set-alert-days');
-  if (elDays) {
-    elDays.value = curAlertDays;
-    elDays.disabled = !isAdm;
-  }
-}
-
-async function setAlertDays(val) {
-  if (!isAdmin()) return toast('權限不足：僅管理者可設定提醒天數', 'error');
-  const days = parseInt(val, 10) || 3;
-  D.settings = D.settings || {};
-  D.settings.alertDays = days;
-  toast(`已設定固定支出到期提醒為 ${days} 天前`, 'success');
-  updateNavBadges();
-  await saveData();
 }
 
 async function chUser(id, username) {
