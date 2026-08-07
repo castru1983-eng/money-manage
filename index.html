@@ -756,7 +756,7 @@ const txs = () => {
       item.amount = typeof item.amount === 'number' ? item.amount : (f ? f.amount : (ex.amount || 0));
       item.date = ex.date || item.date || tod();
       item.paidBy = ex.paidBy || item.paidBy || null;
-      item.photo = ex.photo || item.photo || null;
+      item.photo = ex.photo || item.photo || (f ? f.photo : null);
       item.note = ex.note || item.note || '';
     } else if (t.ref && D.deposits[t.ref]) {
       const d = D.deposits[t.ref];
@@ -788,7 +788,7 @@ const txs = () => {
         date: ex.date || (ex.createdAt ? new Date(ex.createdAt).toISOString().slice(0, 10) : tod()),
         paidBy: ex.paidBy || null,
         note: ex.note || '',
-        photo: ex.photo || null,
+        photo: ex.photo || (f ? f.photo : null),
         ref: exId,
         balanceAfter: D.balance,
         createdAt: ex.createdAt || Date.now()
@@ -2295,7 +2295,7 @@ function openExec(fid, exId){
       document.getElementById('exec-loc').value = ex.location || f.location || 'P2';
       document.getElementById('exec-date').value = ex.date || tod();
       document.getElementById('exec-note').value = ex.note || '';
-      setPhotoPreview(ex.photo, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-img');
+      setPhotoPreview(ex.photo || f.photo, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-img');
     }
   } else {
     document.getElementById('exec-loc').value = f.location || 'P2';
@@ -2303,7 +2303,7 @@ function openExec(fid, exId){
     if(defaultPayer) document.getElementById('exec-paid').value = findMemberId(defaultPayer) || defaultPayer;
     document.getElementById('exec-date').value=tod();
     document.getElementById('exec-note').value='';
-    clearPhoto('exec-photo-input', 'exec-photo-prev', 'exec-photo-val');
+    setPhotoPreview(f.photo, 'exec-photo-input', 'exec-photo-val', 'exec-photo-img');
   }
   openM('mo-exec');
 }
@@ -2313,17 +2313,18 @@ async function submitExec(){
   const f=D.fixedItems[fid]; if(!f)return;
   if(!date)return toast('請選擇日期','error');
   const photo = await getPhotoValue('exec-photo-input', 'exec-photo-val');
+  const finalPhoto = photo || (f ? f.photo : null);
 
   if (exId) {
     try {
       if (D.fixedExecutions[exId]) {
-        D.fixedExecutions[exId] = { ...D.fixedExecutions[exId], paidBy: paid, location: loc, date, note, photo: photo || null };
+        D.fixedExecutions[exId] = { ...D.fixedExecutions[exId], paidBy: paid, location: loc, date, note, photo: finalPhoto };
       }
       const tx = txs().find(t => t.ref === exId);
       if (tx && D.transactions[tx.id]) {
-        D.transactions[tx.id] = { ...D.transactions[tx.id], name: f.name + '（固定）', category: f.name, amount: f.amount, date, location: loc, paidBy: paid, note, photo: photo || null };
+        D.transactions[tx.id] = { ...D.transactions[tx.id], name: f.name + '（固定）', category: f.name, amount: f.amount, date, location: loc, paidBy: paid, note, photo: finalPhoto };
       }
-      closeM('mo-exec'); toast('已更新扣款紀錄與帳目明細', 'success');
+      closeM('mo-exec'); toast('已更新扣款紀錄與帳目明細照片', 'success');
       await saveData();
     } catch (e) { toast('更新失敗：' + e.message, 'error'); }
   } else {
@@ -2332,9 +2333,9 @@ async function submitExec(){
     try{
       D.balance = (D.balance || 0) - f.amount;
       const key = 'ex_' + gid();
-      D.fixedExecutions[key] = { id: key, fixedId: fid, name: f.name, amount: f.amount, month: m, done: true, location: loc, date, paidBy: paid, note, photo: photo || null, createdAt: Date.now() };
+      D.fixedExecutions[key] = { id: key, fixedId: fid, name: f.name, amount: f.amount, month: m, done: true, location: loc, date, paidBy: paid, note, photo: finalPhoto, createdAt: Date.now() };
       const txKey = 'tx_' + gid();
-      D.transactions[txKey] = { id: txKey, type: 'out', name: f.name + '（固定）', category: f.name || '固定支出', location: loc, amount: f.amount, date, paidBy: paid, note, photo: photo || null, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
+      D.transactions[txKey] = { id: txKey, type: 'out', name: f.name + '（固定）', category: f.name || '固定支出', location: loc, amount: f.amount, date, paidBy: paid, note, photo: finalPhoto, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
       closeM('mo-exec'); toast('已成功扣款 NT$' + fmt(f.amount) + (paid ? '，繳款人：' + mName(paid) : ''), 'success');
       await saveData();
     }catch(e){toast('扣款失敗：' + e.message, 'error');}
@@ -2343,7 +2344,7 @@ async function submitExec(){
 
 // --- Transaction Edit ---
 function openTxEdit(txId) {
-  const t = D.transactions[txId];
+  const t = txs().find(item => item.id === txId) || D.transactions[txId];
   if (!t) return;
   fillCats('txe-name');
   fillCats('txe-cat');
