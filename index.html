@@ -1594,7 +1594,7 @@ function renderLedger() {
         <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
         <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
         <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
-        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span>${isAdmin() ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:2px 5px;font-size:11px">✏️</button><button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button>` : ''}</div></td>
+        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span>${isAdmin() ? `<button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button>` : ''}</div></td>
       </tr>`).join('');
   const ti=list.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
   const to=list.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
