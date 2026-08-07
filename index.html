@@ -1473,7 +1473,7 @@ function renderFixed() {
     }
 
     return `<tr>
-      <td style="font-weight:700">${f.name}${f.paidBy ? ` <span class="badge b-blue" style="font-size:10px;margin-left:4px">👤 ${mName(f.paidBy)}</span>` : ''}${itemPhoto ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${itemPhoto}')" title="查看照片" style="margin-left:6px">🖼️</button>` : ''}</td>
+      <td style="font-weight:700">${f.name}${f.paidBy ? ` <span class="badge b-blue" style="font-size:10px;margin-left:4px">👤 ${mName(f.paidBy)}</span>` : ''}${f.note ? `<div style="font-size:11px;color:var(--t3);font-weight:400;margin-top:2px">💬 ${f.note}</div>` : ''}${itemPhoto ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${itemPhoto}')" title="查看照片" style="margin-left:6px">🖼️</button>` : ''}</td>
       <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
       <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
       <td style="color:var(--t2)">${invoiceDateStr}</td>
@@ -2188,13 +2188,20 @@ function openFixed(eid){
         document.getElementById('fix-day').value = tod();
       }
       document.getElementById('fix-paid').value=f.paidBy||'';
+      const elRet = document.getElementById('fix-return-date');
+      if (elRet) elRet.value = f.returnDate || '';
       document.getElementById('fix-note').value=f.note||'';
       setPhotoPreview(f.photo, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-img');
     }
   } else {
     document.getElementById('fix-day').value = tod();
+    const elRet = document.getElementById('fix-return-date');
+    if (elRet) elRet.value = '';
     if(CFG && CFG.currentMemberId) document.getElementById('fix-paid').value = CFG.currentMemberId; else document.getElementById('fix-paid').value = '';
-    ['fix-amt','fix-note'].forEach(i=>document.getElementById(i).value='');
+    ['fix-amt','fix-note'].forEach(i=>{
+      const el = document.getElementById(i);
+      if (el) el.value = '';
+    });
     clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val');
   }
   openM('mo-fixed');
@@ -2202,6 +2209,8 @@ function openFixed(eid){
 async function submitFixed(){
   if (!isAdmin()) return toast('權限不足：僅管理者可編輯固定支出', 'error');
   const name=document.getElementById('fix-name').value, loc=document.getElementById('fix-loc').value||'P2', amt=parseFloat(document.getElementById('fix-amt').value), rawDay=document.getElementById('fix-day').value, paid=document.getElementById('fix-paid').value||null, note=document.getElementById('fix-note').value.trim(), eid=document.getElementById('fix-eid').value;
+  const elRet = document.getElementById('fix-return-date');
+  const returnDate = elRet ? (elRet.value || null) : null;
   if(!name)return toast('請選擇項目名稱','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   let day = null;
@@ -2211,15 +2220,18 @@ async function submitFixed(){
     day = parseInt(rawDay, 10) || null;
   }
   const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
-  const data={name,category:name,location:loc,amount:amt,day,dayDate:rawDay||null,paidBy:paid,note,photo:photo||null};
+  const data={name,category:name,location:loc,amount:amt,day,dayDate:rawDay||null,paidBy:paid,returnDate,note,photo:photo||null};
   if(eid) {
     if (D.fixedItems[eid]) D.fixedItems[eid] = { ...D.fixedItems[eid], ...data };
     const relatedExecs = execs().filter(e => e.fixedId === eid);
     for (const ex of relatedExecs) {
-      if (D.fixedExecutions[ex.id]) D.fixedExecutions[ex.id].location = loc;
+      if (D.fixedExecutions[ex.id]) {
+        D.fixedExecutions[ex.id].location = loc;
+        if (!D.fixedExecutions[ex.id].note) D.fixedExecutions[ex.id].note = note;
+      }
       const tx = txs().find(t => t.ref === ex.id);
       if (tx && D.transactions[tx.id]) {
-        D.transactions[tx.id] = { ...D.transactions[tx.id], name: name + '（固定）', category: name, location: loc, amount: amt };
+        D.transactions[tx.id] = { ...D.transactions[tx.id], name: name + '（固定）', category: name, location: loc, amount: amt, note: tx.note || note };
       }
     }
   } else {
@@ -2247,7 +2259,7 @@ function openExec(fid, exId){
       document.getElementById('exec-loc').value = ex.location || f.location || 'P2';
       document.getElementById('exec-date').value = ex.date || tod();
       document.getElementById('exec-return-date').value = ex.returnDate || f.returnDate || '';
-      document.getElementById('exec-note').value = ex.note || '';
+      document.getElementById('exec-note').value = ex.note || f.note || '';
       setPhotoPreview(ex.photo || f.photo, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-img');
     }
   } else {
@@ -2256,7 +2268,7 @@ function openExec(fid, exId){
     if(defaultPayer) document.getElementById('exec-paid').value = findMemberId(defaultPayer) || defaultPayer;
     document.getElementById('exec-date').value=tod();
     document.getElementById('exec-return-date').value = f.returnDate || '';
-    document.getElementById('exec-note').value='';
+    document.getElementById('exec-note').value=f.note || '';
     setPhotoPreview(f.photo, 'exec-photo-input', 'exec-photo-val', 'exec-photo-img');
   }
   openM('mo-exec');
