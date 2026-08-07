@@ -375,7 +375,12 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 
 <!-- LEDGER -->
 <div class="page" id="page-ledger">
-  <div class="ph"><div><div class="ph-title">📒 帳目明細</div><div class="ph-sub">完整收支流水帳</div></div></div>
+  <div class="ph">
+    <div><div class="ph-title">📒 帳目明細</div><div class="ph-sub">完整收支流水帳</div></div>
+    <div>
+      <button class="btn btn-p" onclick="exportLedgerExcel()" style="white-space:nowrap" title="匯出當前搜尋與篩選結果為 Excel 報表">📊 匯出目前搜尋結果 Excel</button>
+    </div>
+  </div>
   <div class="card">
     <div class="filter-bar">
       <input type="month" class="fc" id="lf-mo" onchange="renderLedger()"/>
@@ -1590,8 +1595,9 @@ function exportLedgerExcel() {
   }));
 
   const moVal = document.getElementById('lf-mo') ? document.getElementById('lf-mo').value : '';
+  const searchVal = document.getElementById('lf-s') ? document.getElementById('lf-s').value.trim() : '';
   const dateStr = moVal ? moVal : tod();
-  const filename = `帳目明細報表_${dateStr}.xlsx`;
+  const filename = `帳目明細搜尋結果_${dateStr}${searchVal ? '_' + searchVal : ''}.xlsx`;
 
   if (window.XLSX) {
     const ws = XLSX.utils.json_to_sheet(dataRows);
