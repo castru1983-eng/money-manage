@@ -1172,7 +1172,11 @@ function renderDash() {
   const elHInc = document.getElementById('h-inc'); if (elHInc) elHInc.textContent = fmt(inc);
   const elHFix = document.getElementById('h-fix'); if (elHFix) elHFix.textContent = fmt(fixTot);
 
-  const unpaidFixTot = fixes().filter(f => f.active !== false && !execs().find(e => e.fixedId === f.id && e.month === m && e.done)).reduce((s, f) => s + (f.amount || 0), 0);
+  const isFixedDone = (f) => {
+    const ex = execs().find(e => e.fixedId === f.id && e.month === m);
+    return (ex && ex.done) || (ex && ex.returnDate) || f.returnDate;
+  };
+  const unpaidFixTot = fixes().filter(f => f.active !== false && !isFixedDone(f)).reduce((s, f) => s + (f.amount || 0), 0);
   const elSc1 = document.getElementById('sc1'); if (elSc1) elSc1.textContent = fmt(Math.max(0, D.balance - unpaidFixTot));
   const elSc2 = document.getElementById('sc2'); if (elSc2) elSc2.textContent = fmt(inc);
   const elSc3 = document.getElementById('sc3'); if (elSc3) elSc3.textContent = fmt(exp);
@@ -1204,11 +1208,21 @@ function renderDash() {
       : af.map(f=>{
           const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
           const done=ex&&ex.done;
+          const returnDate = (ex && ex.returnDate) || f.returnDate || null;
+          const itemPhoto = (ex && ex.photo) || f.photo || null;
+          let statusBadge = '';
+          if (done) {
+            statusBadge = `<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`;
+          } else if (returnDate) {
+            const payerName = (f.paidBy ? ' · ' + mName(f.paidBy) : '');
+            statusBadge = `<span class="badge b-green">✓ 收據已繳回 (${returnDate}${payerName})</span>${itemPhoto?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${itemPhoto}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openFixed('${f.id}')" title="編輯項目/繳回日期">✏️</button>` : ''}`;
+          } else {
+            statusBadge = (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`);
+          }
           return `<div style="display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.03)">
             <div style="flex:1"><div style="font-size:13px;font-weight:700">${f.name} <span class="badge b-cyan" style="font-size:10px">📍 ${ex&&ex.location?ex.location:(f.location||'P2')}</span></div><div style="font-size:11px;color:var(--t3)">${f.dayDate?f.dayDate+'截止':(f.day?f.day+'號前截止':'-')}</div></div>
             <div style="font-size:15px;font-weight:900;color:var(--amber);margin-right:10px">NT$${fmt(f.amount)}</div>
-            ${done?`<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`:
-            (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`)}
+            ${statusBadge}
           </div>`;
         }).join('');
   }
