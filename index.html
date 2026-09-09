@@ -2549,7 +2549,7 @@ async function showSetup() {
   _supabaseKey = useKey;
   _room = currentRoom;
 
-  // Step 2: Try loading from localStorage cache FIRST (instant, no network)
+  // Step 2: Ensure D has members immediately (from cache or defaults) so the UI is never blank
   let loadedFromCache = false;
   try {
     const cached = localStorage.getItem('sfund_data_' + currentRoom);
@@ -2562,10 +2562,16 @@ async function showSetup() {
     }
   } catch(e) {}
 
-  // Show members immediately if we have cached data
-  if (loadedFromCache) {
-    fillLoginSelect('s-mid-sel');
+  if (!D.members || Object.keys(D.members).length === 0) {
+    const ms = {};
+    const m1 = gid(), m2 = gid();
+    ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
+    ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
+    D = { balance: 0, members: ms, categories: DEF_CATS, locations: DEF_LOCS, transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}, settings: { alertDays: 3 } };
   }
+
+  // Populate member dropdown immediately (0 delay)
+  fillLoginSelect('s-mid-sel');
 
   // Step 3: Try Supabase in background to get fresh data
   try {
@@ -2577,40 +2583,16 @@ async function showSetup() {
       if (error) {
         console.warn('Supabase fetch error:', error.message);
       } else if (!data) {
-        // Room does not exist - create it with current D data or defaults
-        if (!D.members || Object.keys(D.members).length === 0) {
-          const ms = {};
-          const m1 = gid(), m2 = gid();
-          ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
-          ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
-          D = { balance: 0, members: ms, categories: DEF_CATS, locations: DEF_LOCS, transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}, settings: { alertDays: 3 } };
-        }
         await tmpClient.from('rooms').upsert({ room_code: currentRoom, data: D, updated_at: new Date().toISOString() });
         try { localStorage.setItem('sfund_data_' + currentRoom, JSON.stringify(D)); } catch(e){}
       } else if (data && data.data) {
         D = data.data;
         try { localStorage.setItem('sfund_data_' + currentRoom, JSON.stringify(D)); } catch(e){}
+        fillLoginSelect('s-mid-sel');
       }
     }
   } catch(e) {
     console.warn('showSetup Supabase error:', e);
-  } finally {
-    // 確保即使 Supabase 查詢逾時或全新瀏覽器無快取，選單也絕對有成員可選
-    if (!D.members || Object.keys(D.members).length === 0) {
-      const cached = localStorage.getItem('sfund_data_' + currentRoom);
-      if (cached) {
-        try { D = JSON.parse(cached); } catch(e){}
-      }
-      if (!D.members || Object.keys(D.members).length === 0) {
-        const ms = {};
-        const m1 = gid(), m2 = gid();
-        ms[m1] = { name: '管理者', username: 'admin', password: 'admin888', role: 'admin', color: COLORS[0], createdAt: Date.now() };
-        ms[m2] = { name: '一般使用者', username: 'user', password: 'user123', role: 'user', color: COLORS[1], createdAt: Date.now() };
-        D = { balance: 0, members: ms, categories: DEF_CATS, locations: DEF_LOCS, transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}, settings: { alertDays: 3 } };
-        try { localStorage.setItem('sfund_data_' + currentRoom, JSON.stringify(D)); } catch(e){}
-      }
-    }
-    fillLoginSelect('s-mid-sel');
   }
 }
 function toggleHelp(){const h=document.getElementById('help-box');h.style.display=h.style.display==='none'?'block':'none';}
