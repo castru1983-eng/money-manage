@@ -811,6 +811,14 @@ const txs = () => {
 const deps = () => Object.entries(D.deposits || {}).map(([id,d])=>({id,...d}));
 const fixes = () => Object.entries(D.fixedItems || {}).map(([id,f])=>({id,...f}));
 const execs = () => Object.entries(D.fixedExecutions || {}).map(([id,e])=>({id,...e}));
+const getFixedSortKey = (f, ex) => {
+  if (f.dayDate) return f.dayDate;
+  const ret = (ex && ex.returnDate) || f.returnDate;
+  if (ret) return ret;
+  if (f.day) return `${mon()}-${String(f.day).padStart(2, '0')}`;
+  if (ex && ex.date) return ex.date;
+  return '0000-00-00';
+};
 function findMemberId(identifier) {
   if (!identifier) return null;
   if (D.members && D.members[identifier]) return identifier;
@@ -1200,7 +1208,15 @@ function renderDash() {
   mt.filter(t=>t.type==='out').forEach(t=>{const c=t.name||'其他';catMap[c]=(catMap[c]||0)+t.amount;});
   makePie('ch-dash',catMap,210);
 
-  const af = fixes().filter(f=>f.active!==false);
+  const af = fixes().filter(f=>f.active!==false).sort((a, b) => {
+    const exA = execs().find(e => e.fixedId === a.id && e.month === m);
+    const exB = execs().find(e => e.fixedId === b.id && e.month === m);
+    const keyA = getFixedSortKey(a, exA);
+    const keyB = getFixedSortKey(b, exB);
+    const retA = (exA && exA.returnDate) || a.returnDate || '';
+    const retB = (exB && exB.returnDate) || b.returnDate || '';
+    return keyB.localeCompare(keyA) || retB.localeCompare(retA) || (b.createdAt || 0) - (a.createdAt || 0);
+  });
   const elFixProg = document.getElementById('fix-prog');
   if (elFixProg) {
     elFixProg.innerHTML = af.length===0
@@ -1449,6 +1465,15 @@ function renderFixed() {
   if (curFixedTab === 'unpaid') displayList = unpaidList;
   else if (curFixedTab === 'paid') displayList = paidList;
   else displayList = allFs.map(f => ({ item: f, ex: execs().find(e => e.fixedId === f.id && e.month === m) }));
+
+  // 日期由近到遠排序（較近/較新的日期在最上面）
+  displayList.sort((a, b) => {
+    const keyA = getFixedSortKey(a.item, a.ex);
+    const keyB = getFixedSortKey(b.item, b.ex);
+    const retA = (a.ex && a.ex.returnDate) || a.item.returnDate || '';
+    const retB = (b.ex && b.ex.returnDate) || b.item.returnDate || '';
+    return keyB.localeCompare(keyA) || retB.localeCompare(retA) || (b.item.createdAt || 0) - (a.item.createdAt || 0);
+  });
 
   const tbody = document.getElementById('fix-tbody');
   if (!tbody) return;
