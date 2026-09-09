@@ -2228,6 +2228,11 @@ async function submitFixed(){
       if (D.fixedExecutions[ex.id]) {
         D.fixedExecutions[ex.id].location = loc;
         if (!D.fixedExecutions[ex.id].note) D.fixedExecutions[ex.id].note = note;
+        // 若固定項目已填收據繳回日期，自動把對應 execution 標記為已扣款
+        if (returnDate && !D.fixedExecutions[ex.id].done) {
+          D.fixedExecutions[ex.id].done = true;
+          D.fixedExecutions[ex.id].returnDate = returnDate;
+        }
       }
       const tx = txs().find(t => t.ref === ex.id);
       if (tx && D.transactions[tx.id]) {
@@ -2284,7 +2289,10 @@ async function submitExec(){
   if (exId) {
     try {
       if (D.fixedExecutions[exId]) {
-        D.fixedExecutions[exId] = { ...D.fixedExecutions[exId], paidBy: paid, location: loc, date, returnDate, note, photo: finalPhoto };
+        // 若已填收據繳回日期，自動視為已扣款（done=true）
+        const wasDone = D.fixedExecutions[exId].done;
+        const nowDone = wasDone || !!returnDate;
+        D.fixedExecutions[exId] = { ...D.fixedExecutions[exId], paidBy: paid, location: loc, date, returnDate, note, photo: finalPhoto, done: nowDone };
       }
       const tx = txs().find(t => t.ref === exId);
       if (tx && D.transactions[tx.id]) {
