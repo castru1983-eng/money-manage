@@ -1464,6 +1464,10 @@ function renderFixed() {
       } else {
         statusHtml = `<button class="btn btn-p btn-sm" style="background:linear-gradient(135deg,var(--amber),#dd6b20);border-color:#dd6b20" onclick="openExec('${f.id}','${ex.id}')" title="點擊補填收據繳回日期">⚠️ 已扣款 · 補填繳回日期</button>`;
       }
+    } else if (returnDate) {
+      // 已填收據繳回日期，狀態顯示為已收回
+      const payerName = (f.paidBy ? ' · ' + mName(f.paidBy) : '');
+      statusHtml = `<span class="badge b-green">✓ 收據已繳回 (${returnDate}${payerName})</span>`;
     } else {
       if (!isAdm) {
         statusHtml = `<span class="badge b-amber">待扣款 (僅管理者可操作)</span>`;
