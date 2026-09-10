@@ -69,6 +69,10 @@ body{font-family:'Noto Sans TC',sans-serif;background:var(--bg);color:var(--t1);
 .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
 .sync-dot.off{background:var(--amber);animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.mod-tab-btn{background:transparent;border:1px solid transparent;color:var(--t3);font-size:11px;font-weight:800;padding:7px 4px;border-radius:6px;cursor:pointer;transition:all var(--tr);display:flex;align-items:center;justify-content:center;gap:4px;text-align:center;white-space:nowrap;}
+.mod-tab-btn:hover{color:var(--t1);background:var(--glassH);}
+.mod-tab-btn.active{background:linear-gradient(135deg,var(--blueG),var(--violetG));color:var(--blue);border-color:rgba(99,179,237,0.35);box-shadow:0 2px 8px rgba(0,0,0,0.3);}
+
 
 /* ── MAIN ── */
 #app-screen{display:none;width:100%;}
@@ -301,12 +305,28 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       🚪 登出系統
     </button>
   </div>
-  <div class="nav-label">主選單</div>
-  <div class="nav-item active" id="nav-dashboard" onclick="go('dashboard')"><span class="ni">📊</span>總覽</div>
-  <div class="nav-item" id="nav-members" onclick="go('members')"><span class="ni">👥</span>成員管理</div>
-  <div class="nav-item" id="nav-fixed" onclick="go('fixed')"><span class="ni">📋</span>固定支出<span id="nav-fixed-badge"></span></div>
-  <div class="nav-item" id="nav-ledger" onclick="go('ledger')"><span class="ni">📒</span>帳目明細</div>
-  <div class="nav-item" id="nav-report" onclick="go('report')"><span class="ni">📈</span>月結報表</div>
+  <div class="module-switcher" style="margin:4px 0 16px;background:rgba(0,0,0,0.35);border:1px solid var(--border);border-radius:var(--rsm);padding:3px;display:grid;grid-template-columns:1fr 1fr;gap:4px">
+    <button type="button" class="mod-tab-btn active" id="mod-btn-fund" onclick="switchModule('fund')" title="切換至共用金管理">
+      💰 共用金
+    </button>
+    <button type="button" class="mod-tab-btn" id="mod-btn-receipt" onclick="switchModule('receipt')" title="切換至公司收據管理">
+      🧾 公司收據<span id="mod-rcpt-dot" style="display:none;width:6px;height:6px;border-radius:50%;background:var(--amber);box-shadow:0 0 6px var(--amber);margin-left:2px"></span>
+    </button>
+  </div>
+  <div id="nav-group-fund">
+    <div class="nav-label">共用金主選單</div>
+    <div class="nav-item active" id="nav-dashboard" onclick="go('dashboard')"><span class="ni">📊</span>總覽</div>
+    <div class="nav-item" id="nav-members" onclick="go('members')"><span class="ni">👥</span>成員管理</div>
+    <div class="nav-item" id="nav-fixed" onclick="go('fixed')"><span class="ni">📋</span>固定支出<span id="nav-fixed-badge"></span></div>
+    <div class="nav-item" id="nav-ledger" onclick="go('ledger')"><span class="ni">📒</span>帳目明細</div>
+    <div class="nav-item" id="nav-report" onclick="go('report')"><span class="ni">📈</span>月結報表</div>
+  </div>
+  <div id="nav-group-receipt" style="display:none">
+    <div class="nav-label">公司收據管理</div>
+    <div class="nav-item" id="nav-receipts" onclick="go('receipts')"><span class="ni">🧾</span>收據明細總覽<span id="nav-receipts-badge"></span></div>
+    <div class="nav-item" id="nav-rcpt-unret" onclick="go('receipts'); setReceiptTab('unreturned');"><span class="ni">⚠️</span>尚未繳回收據<span id="nav-rcpt-unret-badge"></span></div>
+    <div class="nav-item" id="nav-rcpt-ret" onclick="go('receipts'); setReceiptTab('returned');"><span class="ni">✅</span>已繳回收據</div>
+  </div>
   <div class="nav-label" style="margin-top:10px">其他</div>
   <div class="nav-item" id="nav-settings" onclick="go('settings')"><span class="ni">⚙️</span>系統設定</div>
   <div class="sb-footer">
@@ -470,6 +490,94 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         <div class="srow"><div><div class="srow-label">總餘額歸零</div><div class="srow-sub">將共用金總餘額重設為 NT$ 0</div></div><button class="btn btn-d btn-sm" onclick="resetBalanceZero()">💰 歸零餘額</button></div>
         <div class="srow"><div><div class="srow-label">匯出備份</div><div class="srow-sub">下載 JSON 備份</div></div><button class="btn btn-sec btn-sm" onclick="exportData()">📥 匯出</button></div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- RECEIPTS (公司收據管理) -->
+<div class="page" id="page-receipts">
+  <div class="ph">
+    <div>
+      <div class="ph-title">🧾 公司收據管理</div>
+      <div class="ph-sub">公司各項支出收據與發票憑證歸檔（獨立管理，不影響共用金餘額）</div>
+    </div>
+    <div class="flex g2i">
+      <button class="btn btn-sec" onclick="exportReceiptsExcel()" title="匯出收據清單為 Excel 試算表">📥 匯出 Excel</button>
+      <button class="btn btn-p" onclick="openReceiptModal()">＋ 新增收據</button>
+    </div>
+  </div>
+
+  <div class="g4 mb6">
+    <div class="sc blue">
+      <div class="sc-icon">🧾</div>
+      <div class="sc-label">本月收據總額</div>
+      <div class="sc-val blue">NT$<span id="rcpt-stat-cur-tot">0</span></div>
+      <div class="sc-sub"><span id="rcpt-stat-cur-cnt">0</span> 筆憑證</div>
+    </div>
+    <div class="sc amber">
+      <div class="sc-icon">⚠️</div>
+      <div class="sc-label">尚未繳回收據</div>
+      <div class="sc-val amber"><span id="rcpt-stat-unreturned-cnt">0</span> 筆</div>
+      <div class="sc-sub">合計 NT$<span id="rcpt-stat-unreturned-tot">0</span></div>
+    </div>
+    <div class="sc green">
+      <div class="sc-icon">✅</div>
+      <div class="sc-label">收據已繳回</div>
+      <div class="sc-val green"><span id="rcpt-stat-returned-cnt">0</span> 筆</div>
+      <div class="sc-sub">合計 NT$<span id="rcpt-stat-returned-tot">0</span></div>
+    </div>
+    <div class="sc violet">
+      <div class="sc-icon">📊</div>
+      <div class="sc-label">年度累計總額</div>
+      <div class="sc-val violet">NT$<span id="rcpt-stat-year-tot">0</span></div>
+      <div class="sc-sub"><span id="rcpt-stat-year-cnt">0</span> 筆收據</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px">
+      <div class="tab-group" style="display:flex;gap:6px;background:rgba(0,0,0,0.35);padding:4px;border-radius:var(--rsm);border:1px solid var(--border)">
+        <button class="tab-btn active" id="tab-rcpt-all" onclick="setReceiptTab('all')" style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent;background:var(--blueG);color:var(--blue);transition:all var(--tr)">
+          📋 全部收據 <span id="cnt-rcpt-all" class="badge b-blue" style="margin-left:4px;font-size:10px">0</span>
+        </button>
+        <button class="tab-btn" id="tab-rcpt-unreturned" onclick="setReceiptTab('unreturned')" style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--t3);transition:all var(--tr)">
+          ⚠️ 尚未繳回 <span id="cnt-rcpt-unreturned" class="badge b-amber" style="margin-left:4px;font-size:10px">0</span>
+        </button>
+        <button class="tab-btn" id="tab-rcpt-returned" onclick="setReceiptTab('returned')" style="padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid transparent;background:transparent;color:var(--t3);transition:all var(--tr)">
+          ✅ 已繳回收據 <span id="cnt-rcpt-returned" class="badge b-green" style="margin-left:4px;font-size:10px">0</span>
+        </button>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="month" class="fc" id="rcpt-mo" onchange="renderReceipts()" style="width:auto;padding:6px 10px;font-size:12px"/>
+        <select class="fc" id="rcpt-cat-filter" onchange="renderReceipts()" style="width:auto;padding:6px 10px;font-size:12px">
+          <option value="">全部類別</option>
+        </select>
+        <select class="fc" id="rcpt-loc-filter" onchange="renderReceipts()" style="width:auto;padding:6px 10px;font-size:12px">
+          <option value="">全部地點</option>
+        </select>
+        <input type="text" class="fc" id="rcpt-search" placeholder="🔍 搜尋項目、廠商、發票號、經手人..." oninput="renderReceipts()" style="width:230px;padding:6px 10px;font-size:12px"/>
+      </div>
+    </div>
+
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>發票/收據日期</th>
+            <th>項目事由</th>
+            <th>廠商 / 開立單位</th>
+            <th>發票/收據號碼</th>
+            <th>地點 / 類別</th>
+            <th>金額</th>
+            <th>經手人</th>
+            <th>憑證照片</th>
+            <th>繳回狀態</th>
+            <th>操作</th>
+          </tr>
+        </thead>
+        <tbody id="rcpt-tbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -697,6 +805,100 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
   </div>
 </div>
 
+<div class="mo" id="mo-receipt">
+  <div class="md" style="width:580px;max-width:96vw">
+    <div class="mh">
+      <div class="mt" id="rcpt-mtitle">🧾 新增公司收據</div>
+      <button class="mc" onclick="closeM('mo-receipt')">✕</button>
+    </div>
+    <input type="hidden" id="rcpt-id" value=""/>
+    
+    <div class="fr">
+      <div class="fg">
+        <label class="fl">項目名稱 / 事由 *</label>
+        <input type="text" class="fc" id="rcpt-name" placeholder="例：公務耗材、修繕零件、水電費..."/>
+      </div>
+      <div class="fg">
+        <label class="fl">金額 (NT$) *</label>
+        <input type="number" class="fc" id="rcpt-amt" placeholder="0" min="1"/>
+      </div>
+    </div>
+
+    <div class="fr">
+      <div class="fg">
+        <label class="fl">發票 / 收據日期 *</label>
+        <input type="date" class="fc" id="rcpt-date"/>
+      </div>
+      <div class="fg">
+        <label class="fl">發票 / 收據號碼 (選填)</label>
+        <input type="text" class="fc" id="rcpt-inv" placeholder="例：AB-12345678"/>
+      </div>
+    </div>
+
+    <div class="fr">
+      <div class="fg">
+        <label class="fl">廠商 / 開立單位</label>
+        <input type="text" class="fc" id="rcpt-vendor" placeholder="例：台灣中油、大潤發、水電行..."/>
+      </div>
+      <div class="fg">
+        <label class="fl">費用類別</label>
+        <select class="fc" id="rcpt-cat"></select>
+      </div>
+    </div>
+
+    <div class="fr">
+      <div class="fg">
+        <label class="fl">廠區 / 地點</label>
+        <select class="fc" id="rcpt-loc"></select>
+      </div>
+      <div class="fg">
+        <label class="fl">經手人 / 報帳人</label>
+        <select class="fc" id="rcpt-paidby"></select>
+      </div>
+    </div>
+
+    <div class="fr">
+      <div class="fg">
+        <label class="fl">收據繳回狀態</label>
+        <select class="fc" id="rcpt-status" onchange="onReceiptStatusChange(this.value)">
+          <option value="unreturned">⚠️ 尚未繳回實體收據</option>
+          <option value="returned">✅ 收據已繳回</option>
+        </select>
+      </div>
+      <div class="fg" id="fg-rcpt-retdate">
+        <label class="fl">收據繳回日期</label>
+        <input type="date" class="fc" id="rcpt-retdate"/>
+      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">備註說明</label>
+      <input type="text" class="fc" id="rcpt-note" placeholder="補充說明用途或核准備忘 (選填)..."/>
+    </div>
+
+    <div class="fg">
+      <label class="fl">📷 上傳收據 / 發票憑證照片</label>
+      <div class="photo-upload-box">
+        <input type="file" id="rcpt-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-img')"/>
+        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('rcpt-photo-input').click()">🖼️ 選擇照片 / 手機拍照</button>
+        <div id="rcpt-photo-prev" class="photo-preview-wrap" style="display:none">
+          <img id="rcpt-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大檢視"/>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('rcpt-photo-input', 'rcpt-photo-prev', 'rcpt-photo-val')">✕ 移除照片</button>
+        </div>
+        <input type="hidden" id="rcpt-photo-val" value=""/>
+      </div>
+    </div>
+
+    <div class="mf" style="justify-content:space-between">
+      <button type="button" class="btn btn-d btn-sm" id="btn-del-rcpt" style="display:none" onclick="delReceiptFromModal()">🗑 刪除此收據</button>
+      <div class="flex g2i" style="margin-left:auto">
+        <button type="button" class="btn btn-sec" onclick="closeM('mo-receipt')">取消</button>
+        <button type="button" class="btn btn-p" onclick="submitReceiptModal()">💾 儲存收據</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="toasts"></div>
 
 <script>
@@ -708,14 +910,17 @@ const DEF_CATS = ['房租','水電費','餐飲','交通','採購','娛樂','醫�
 const DEF_LOCS = ['P2','P3','宿舍'];
 const COLORS = ['#63b3ed','#9f7aea','#68d391','#f6ad55','#fc8181','#76e4f7','#fbb6ce'];
 const ICONS = {'房租':'🏠','水電費':'💡','餐飲':'🍱','交通':'🚗','採購':'🛒','娛樂':'🎮','醫療':'🏥','繳款':'📥','注入':'💰','其他':'📌'};
+const DEF_RECEIPT_CATS = ['水電公用', '辦公耗材', '公務修繕', '公務加油', '郵電快遞', '餐飲業務', '清潔用品', '設備採購', '其他'];
 
 let CFG = null; // {firebaseConfig, roomCode, currentMemberId}
-let db = null, rRef = null, curPage = 'dashboard';
+let db = null, rRef = null, curPage = 'dashboard', curModule = 'fund', curFundPage = 'dashboard';
+let curReceiptTab = 'all';
 const charts = {};
 
 let D = {
   balance: 0, members: {}, categories: [...DEF_CATS], locations: [...DEF_LOCS],
-  transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {}
+  transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {},
+  companyReceipts: {}
 };
 
 // ═══════════════════════════════════════════════
@@ -1098,6 +1303,7 @@ function renderAppUI() {
   D.transactions = D.transactions || {};
   D.fixedItems = D.fixedItems || {};
   D.fixedExecutions = D.fixedExecutions || {};
+  D.companyReceipts = D.companyReceipts || {};
 
   // 如果總餘額仍為初始 15000，自動清零
   if (D.balance === 15000) {
@@ -1122,6 +1328,7 @@ function renderAppUI() {
   const elBadge = document.getElementById('sb-role-badge');
   if (elBadge) elBadge.textContent = me ? (isAdm ? '👑 管理者' : '👤 一般使用者') : '';
   updateNavBadges();
+  updateModuleSwitcher(curPage);
   renderPage(curPage);
 }
 
@@ -1139,23 +1346,70 @@ async function initRoom() {
     fixedItems: {},
     fixedExecutions: {},
     deposits: {},
+    companyReceipts: {},
     settings: {}
   };
   await saveData();
 }
 
 // ═══════════════════════════════════════════════
-//  NAVIGATION
+//  NAVIGATION & MODULE SWITCHER
 // ═══════════════════════════════════════════════
+function switchModule(mod) {
+  if (mod === 'fund') {
+    go(curFundPage || 'dashboard');
+  } else if (mod === 'receipt') {
+    go('receipts');
+  }
+}
+
+function updateModuleSwitcher(page) {
+  const btnFund = document.getElementById('mod-btn-fund');
+  const btnRcpt = document.getElementById('mod-btn-receipt');
+  const grpFund = document.getElementById('nav-group-fund');
+  const grpRcpt = document.getElementById('nav-group-receipt');
+
+  if (page === 'receipts') {
+    curModule = 'receipt';
+    if (btnFund) btnFund.classList.remove('active');
+    if (btnRcpt) btnRcpt.classList.add('active');
+    if (grpFund) grpFund.style.display = 'none';
+    if (grpRcpt) grpRcpt.style.display = 'block';
+  } else if (page === 'settings') {
+    if (curModule === 'receipt') {
+      if (btnFund) btnFund.classList.remove('active');
+      if (btnRcpt) btnRcpt.classList.add('active');
+      if (grpFund) grpFund.style.display = 'none';
+      if (grpRcpt) grpRcpt.style.display = 'block';
+    } else {
+      if (btnFund) btnFund.classList.add('active');
+      if (btnRcpt) btnRcpt.classList.remove('active');
+      if (grpFund) grpFund.style.display = 'block';
+      if (grpRcpt) grpRcpt.style.display = 'none';
+    }
+  } else {
+    curModule = 'fund';
+    curFundPage = page;
+    if (btnFund) btnFund.classList.add('active');
+    if (btnRcpt) btnRcpt.classList.remove('active');
+    if (grpFund) grpFund.style.display = 'block';
+    if (grpRcpt) grpRcpt.style.display = 'none';
+  }
+}
+
 function go(page) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.getElementById('page-'+page).classList.add('active');
-  document.getElementById('nav-'+page).classList.add('active');
-  curPage = page; renderPage(page);
+  const targetPage = document.getElementById('page-'+page);
+  if (targetPage) targetPage.classList.add('active');
+  const targetNav = document.getElementById('nav-'+page);
+  if (targetNav) targetNav.classList.add('active');
+  curPage = page;
+  updateModuleSwitcher(page);
+  renderPage(page);
 }
 function renderPage(page) {
-  const fn={dashboard:renderDash,members:renderMembers,fixed:renderFixed,ledger:renderLedger,report:renderReport,settings:renderSettings};
+  const fn={dashboard:renderDash,members:renderMembers,fixed:renderFixed,ledger:renderLedger,report:renderReport,settings:renderSettings,receipts:renderReceipts};
   if(fn[page]) fn[page]();
 }
 
@@ -1410,6 +1664,24 @@ function updateNavBadges() {
     } else {
       elBadge.innerHTML = '';
     }
+  }
+
+  const unretRcpts = receipts().filter(r => r.status === 'unreturned' || !r.returnDate);
+  const elRcptBadge = document.getElementById('nav-receipts-badge');
+  if (elRcptBadge) {
+    elRcptBadge.innerHTML = unretRcpts.length > 0
+      ? `<span class="badge b-amber" style="margin-left:auto;font-size:10px;padding:1px 6px" title="有 ${unretRcpts.length} 筆公司收據尚未繳回">⚠️ ${unretRcpts.length}</span>`
+      : '';
+  }
+  const elRcptUnretBadge = document.getElementById('nav-rcpt-unret-badge');
+  if (elRcptUnretBadge) {
+    elRcptUnretBadge.innerHTML = unretRcpts.length > 0
+      ? `<span class="badge b-amber" style="margin-left:auto;font-size:10px;padding:1px 6px;animation:pulse 1.5s infinite">⚠️ ${unretRcpts.length} 筆</span>`
+      : '';
+  }
+  const dotEl = document.getElementById('mod-rcpt-dot');
+  if (dotEl) {
+    dotEl.style.display = unretRcpts.length > 0 ? 'inline-block' : 'none';
   }
 }
 
@@ -2074,6 +2346,372 @@ async function resetBalanceZero(){
 }
 function resetConn(){if(!confirm('確定重設連線？'))return;localStorage.removeItem(LK);location.reload();}
 function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({...D,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='共用金備份_'+tod()+'.json';a.click();toast('已匯出','success');}
+
+// ═══════════════════════════════════════════════
+//  COMPANY RECEIPTS (公司收據管理)
+// ═══════════════════════════════════════════════
+const receipts = () => Object.entries(D.companyReceipts || {}).map(([id, r]) => ({ id, ...r }));
+
+function setReceiptTab(tab) {
+  curReceiptTab = tab;
+  ['all', 'unreturned', 'returned'].forEach(t => {
+    const btn = document.getElementById('tab-rcpt-' + t);
+    if (btn) {
+      const active = t === tab;
+      btn.style.background = active ? (t === 'returned' ? 'rgba(104,211,145,0.18)' : (t === 'unreturned' ? 'rgba(246,173,85,0.18)' : 'var(--blueG)')) : 'transparent';
+      btn.style.color = active ? (t === 'returned' ? 'var(--green)' : (t === 'unreturned' ? 'var(--amber)' : 'var(--blue)')) : 'var(--t3)';
+    }
+  });
+  renderReceipts();
+}
+
+function fillReceiptFilters() {
+  const catSel = document.getElementById('rcpt-cat-filter');
+  if (catSel && catSel.options.length <= 1) {
+    const curVal = catSel.value;
+    catSel.innerHTML = '<option value="">全部類別</option>' + DEF_RECEIPT_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+    if (curVal) catSel.value = curVal;
+  }
+  const locSel = document.getElementById('rcpt-loc-filter');
+  if (locSel) {
+    const curVal = locSel.value;
+    const curLocs = D.locations && D.locations.length ? D.locations : [...DEF_LOCS];
+    locSel.innerHTML = '<option value="">全部地點</option>' + curLocs.map(l => `<option value="${l}">${l}</option>`).join('');
+    if (curVal) locSel.value = curVal;
+  }
+}
+
+function renderReceipts() {
+  updateNavBadges();
+  fillReceiptFilters();
+  const isAdm = isAdmin();
+
+  const elMo = document.getElementById('rcpt-mo');
+  if (elMo && !elMo.value) elMo.value = mon();
+  const curMo = elMo ? elMo.value : '';
+
+  const catFilter = document.getElementById('rcpt-cat-filter')?.value || '';
+  const locFilter = document.getElementById('rcpt-loc-filter')?.value || '';
+  const searchQ = (document.getElementById('rcpt-search')?.value || '').trim().toLowerCase();
+
+  const allRcpts = receipts();
+
+  // 統計計算
+  const curMoRcpts = curMo ? allRcpts.filter(r => (r.date || '').startsWith(curMo)) : allRcpts;
+  const curMoTot = curMoRcpts.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const unreturnedList = allRcpts.filter(r => r.status === 'unreturned' || !r.returnDate);
+  const unreturnedTot = unreturnedList.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+  const returnedList = allRcpts.filter(r => r.status === 'returned' && r.returnDate);
+  const returnedTot = returnedList.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+  const curYear = curMo ? curMo.slice(0, 4) : new Date().getFullYear().toString();
+  const yearRcpts = allRcpts.filter(r => (r.date || '').startsWith(curYear));
+  const yearTot = yearRcpts.reduce((s, r) => s + (Number(r.amount) || 0), 0);
+
+  const elCurTot = document.getElementById('rcpt-stat-cur-tot'); if (elCurTot) elCurTot.textContent = fmt(curMoTot);
+  const elCurCnt = document.getElementById('rcpt-stat-cur-cnt'); if (elCurCnt) elCurCnt.textContent = curMoRcpts.length;
+  const elUnretCnt = document.getElementById('rcpt-stat-unreturned-cnt'); if (elUnretCnt) elUnretCnt.textContent = unreturnedList.length;
+  const elUnretTot = document.getElementById('rcpt-stat-unreturned-tot'); if (elUnretTot) elUnretTot.textContent = fmt(unreturnedTot);
+  const elRetCnt = document.getElementById('rcpt-stat-returned-cnt'); if (elRetCnt) elRetCnt.textContent = returnedList.length;
+  const elRetTot = document.getElementById('rcpt-stat-returned-tot'); if (elRetTot) elRetTot.textContent = fmt(returnedTot);
+  const elYearTot = document.getElementById('rcpt-stat-year-tot'); if (elYearTot) elYearTot.textContent = fmt(yearTot);
+  const elYearCnt = document.getElementById('rcpt-stat-year-cnt'); if (elYearCnt) elYearCnt.textContent = yearRcpts.length;
+
+  const cntAll = document.getElementById('cnt-rcpt-all'); if (cntAll) cntAll.textContent = allRcpts.length;
+  const cntUnret = document.getElementById('cnt-rcpt-unreturned'); if (cntUnret) cntUnret.textContent = unreturnedList.length;
+  const cntRet = document.getElementById('cnt-rcpt-returned'); if (cntRet) cntRet.textContent = returnedList.length;
+
+  // 篩選清單
+  let displayList = allRcpts;
+  if (curReceiptTab === 'unreturned') {
+    displayList = displayList.filter(r => r.status === 'unreturned' || !r.returnDate);
+  } else if (curReceiptTab === 'returned') {
+    displayList = displayList.filter(r => r.status === 'returned' && r.returnDate);
+  }
+
+  if (curMo) {
+    displayList = displayList.filter(r => (r.date || '').startsWith(curMo));
+  }
+  if (catFilter) {
+    displayList = displayList.filter(r => r.category === catFilter);
+  }
+  if (locFilter) {
+    displayList = displayList.filter(r => r.location === locFilter);
+  }
+  if (searchQ) {
+    displayList = displayList.filter(r => {
+      const matchName = (r.name || '').toLowerCase().includes(searchQ);
+      const matchVendor = (r.vendor || '').toLowerCase().includes(searchQ);
+      const matchInv = (r.invoiceNo || '').toLowerCase().includes(searchQ);
+      const matchPayer = (mName(r.paidBy) || '').toLowerCase().includes(searchQ);
+      const matchNote = (r.note || '').toLowerCase().includes(searchQ);
+      return matchName || matchVendor || matchInv || matchPayer || matchNote;
+    });
+  }
+
+  // 排序：較近/較新的日期排在最上面
+  displayList.sort((a, b) => {
+    const dA = a.date || '';
+    const dB = b.date || '';
+    return dB.localeCompare(dA) || (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
+  const tbody = document.getElementById('rcpt-tbody');
+  if (!tbody) return;
+
+  if (displayList.length === 0) {
+    let emptyMsg = '尚無公司收據資料';
+    if (curReceiptTab === 'unreturned') emptyMsg = '🎉 太棒了！目前無尚未繳回之收據！';
+    else if (curReceiptTab === 'returned') emptyMsg = '目前尚無已繳回收據紀錄';
+    else if (searchQ) emptyMsg = `找不到符合「${searchQ}」的收據`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--t3);padding:32px">${emptyMsg}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = displayList.map(r => {
+    const isReturned = r.status === 'returned' && r.returnDate;
+    const statusBadge = isReturned
+      ? `<span class="badge b-green" style="cursor:pointer" onclick="quickToggleReceiptStatus('${r.id}')" title="點擊切換為未繳回">✅ 已繳回 (${r.returnDate})</span>`
+      : `<span class="badge b-amber" style="cursor:pointer;animation:pulse 1.5s infinite" onclick="quickToggleReceiptStatus('${r.id}')" title="點擊標記為已繳回">⚠️ 尚未繳回</span>`;
+
+    const photoHtml = r.photo
+      ? `<img src="${r.photo}" class="photo-thumb" onclick="viewPhoto('${r.photo}')" title="點擊查看憑證照片"/>`
+      : `<span style="color:var(--t4);font-size:11px">無</span>`;
+
+    return `<tr>
+      <td style="font-weight:700;color:var(--t1)">${r.date || '-'}</td>
+      <td>
+        <div style="font-weight:800;color:var(--t1)">${r.name}</div>
+        ${r.note ? `<div style="font-size:11px;color:var(--t3);margin-top:2px">💬 ${r.note}</div>` : ''}
+      </td>
+      <td>${r.vendor ? `<span style="font-weight:700;color:var(--t2)">${r.vendor}</span>` : '<span style="color:var(--t4)">-</span>'}</td>
+      <td>${r.invoiceNo ? `<span class="badge b-blue" style="font-size:11px">${r.invoiceNo}</span>` : '<span style="color:var(--t4)">-</span>'}</td>
+      <td>
+        <div class="flex g2i" style="flex-wrap:wrap">
+          ${r.location ? `<span class="badge b-cyan" style="font-size:10px">📍 ${r.location}</span>` : ''}
+          ${r.category ? `<span class="badge b-violet" style="font-size:10px">${r.category}</span>` : ''}
+        </div>
+      </td>
+      <td style="font-weight:900;color:var(--amber);font-size:14px">NT$${fmt(r.amount)}</td>
+      <td>${r.paidBy ? `<span class="badge b-blue" style="font-size:10px">👤 ${mName(r.paidBy)}</span>` : '<span style="color:var(--t4)">-</span>'}</td>
+      <td>${photoHtml}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <div class="flex g2i">
+          <button class="btn btn-sec btn-icon btn-sm" onclick="openReceiptModal('${r.id}')" title="編輯收據">✏️</button>
+          ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delReceipt('${r.id}')" title="刪除收據">🗑</button>` : ''}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function onReceiptStatusChange(val) {
+  const retDateEl = document.getElementById('rcpt-retdate');
+  if (!retDateEl) return;
+  if (val === 'returned') {
+    if (!retDateEl.value) retDateEl.value = tod();
+  } else {
+    retDateEl.value = '';
+  }
+}
+
+function openReceiptModal(id) {
+  const isEdit = !!id;
+  document.getElementById('rcpt-mtitle').textContent = isEdit ? '✏️ 編輯公司收據' : '🧾 新增公司收據';
+  document.getElementById('rcpt-id').value = id || '';
+
+  // Fill categories
+  const catSel = document.getElementById('rcpt-cat');
+  if (catSel) {
+    catSel.innerHTML = DEF_RECEIPT_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+  }
+
+  // Fill locations
+  fillLocs('rcpt-loc', false);
+
+  // Fill members
+  fillMems('rcpt-paidby', '不指定');
+
+  const btnDel = document.getElementById('btn-del-rcpt');
+  if (btnDel) btnDel.style.display = (isEdit && isAdmin()) ? 'inline-block' : 'none';
+
+  if (isEdit) {
+    const r = D.companyReceipts[id];
+    if (!r) return;
+    document.getElementById('rcpt-name').value = r.name || '';
+    document.getElementById('rcpt-amt').value = r.amount || '';
+    document.getElementById('rcpt-date').value = r.date || tod();
+    document.getElementById('rcpt-inv').value = r.invoiceNo || '';
+    document.getElementById('rcpt-vendor').value = r.vendor || '';
+    if (r.category && catSel) catSel.value = r.category;
+    if (r.location) document.getElementById('rcpt-loc').value = r.location;
+    if (r.paidBy) document.getElementById('rcpt-paidby').value = r.paidBy;
+    const statusVal = r.status === 'returned' ? 'returned' : 'unreturned';
+    document.getElementById('rcpt-status').value = statusVal;
+    document.getElementById('rcpt-retdate').value = r.returnDate || '';
+    document.getElementById('rcpt-note').value = r.note || '';
+    setPhotoPreview(r.photo, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-img');
+  } else {
+    document.getElementById('rcpt-name').value = '';
+    document.getElementById('rcpt-amt').value = '';
+    document.getElementById('rcpt-date').value = tod();
+    document.getElementById('rcpt-inv').value = '';
+    document.getElementById('rcpt-vendor').value = '';
+    if (catSel) catSel.value = DEF_RECEIPT_CATS[0];
+    const locSel = document.getElementById('rcpt-loc');
+    if (locSel) locSel.value = 'P2';
+    const payerSel = document.getElementById('rcpt-paidby');
+    if (payerSel && CFG && CFG.currentMemberId) payerSel.value = CFG.currentMemberId;
+    document.getElementById('rcpt-status').value = 'unreturned';
+    document.getElementById('rcpt-retdate').value = '';
+    document.getElementById('rcpt-note').value = '';
+    setPhotoPreview(null, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-img');
+  }
+
+  openM('mo-receipt');
+}
+
+async function submitReceiptModal() {
+  const id = document.getElementById('rcpt-id').value;
+  const name = document.getElementById('rcpt-name').value.trim();
+  const amt = parseFloat(document.getElementById('rcpt-amt').value);
+  const date = document.getElementById('rcpt-date').value;
+  const inv = document.getElementById('rcpt-inv').value.trim();
+  const vendor = document.getElementById('rcpt-vendor').value.trim();
+  const cat = document.getElementById('rcpt-cat').value;
+  const loc = document.getElementById('rcpt-loc').value;
+  const paidBy = document.getElementById('rcpt-paidby').value || null;
+  const status = document.getElementById('rcpt-status').value;
+  let retDate = document.getElementById('rcpt-retdate').value || null;
+  if (status === 'returned' && !retDate) retDate = tod();
+  const note = document.getElementById('rcpt-note').value.trim();
+  const photo = await getPhotoValue('rcpt-photo-input', 'rcpt-photo-val');
+
+  if (!name) return toast('請輸入項目名稱 / 事由', 'error');
+  if (isNaN(amt) || amt <= 0) return toast('請輸入有效金額', 'error');
+  if (!date) return toast('請選擇發票 / 收據日期', 'error');
+
+  D.companyReceipts = D.companyReceipts || {};
+  const rid = id || ('rcpt_' + gid());
+  const isEdit = !!id;
+
+  D.companyReceipts[rid] = {
+    id: rid,
+    name,
+    amount: amt,
+    date,
+    invoiceNo: inv,
+    vendor,
+    category: cat,
+    location: loc,
+    paidBy,
+    status,
+    returnDate: (status === 'returned') ? retDate : null,
+    note,
+    photo: photo || null,
+    createdAt: (isEdit && D.companyReceipts[rid]?.createdAt) || Date.now(),
+    updatedAt: Date.now()
+  };
+
+  closeM('mo-receipt');
+  toast(isEdit ? '已成功更新公司收據！' : '已成功新增公司收據！', 'success');
+  await saveData();
+  renderReceipts();
+}
+
+async function quickToggleReceiptStatus(id) {
+  const r = D.companyReceipts && D.companyReceipts[id];
+  if (!r) return;
+  const isNowReturned = (r.status === 'returned' && r.returnDate);
+  if (isNowReturned) {
+    r.status = 'unreturned';
+    r.returnDate = null;
+    toast(`已將「${r.name}」切換為尚未繳回`, 'info');
+  } else {
+    r.status = 'returned';
+    r.returnDate = tod();
+    toast(`已將「${r.name}」標記為已繳回收據（${r.returnDate}）`, 'success');
+  }
+  r.updatedAt = Date.now();
+  await saveData();
+  renderReceipts();
+}
+
+async function delReceipt(id) {
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除收據', 'error');
+  const r = D.companyReceipts && D.companyReceipts[id];
+  if (!r) return;
+  if (!confirm(`確定要刪除收據「${r.name}」（NT$${fmt(r.amount)}）？`)) return;
+  delete D.companyReceipts[id];
+  toast(`已刪除收據「${r.name}」`, 'info');
+  await saveData();
+  renderReceipts();
+}
+
+async function delReceiptFromModal() {
+  const id = document.getElementById('rcpt-id').value;
+  if (!id) return;
+  closeM('mo-receipt');
+  await delReceipt(id);
+}
+
+function exportReceiptsExcel() {
+  const allRcpts = receipts();
+  if (allRcpts.length === 0) return toast('目前尚無任何收據資料可匯出', 'info');
+
+  const elMo = document.getElementById('rcpt-mo');
+  const curMo = elMo ? elMo.value : '';
+  const list = curMo ? allRcpts.filter(r => (r.date || '').startsWith(curMo)) : allRcpts;
+
+  list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+  const dataRows = list.map(r => ({
+    '發票/收據日期': r.date || '',
+    '項目事由': r.name || '',
+    '廠商/開立單位': r.vendor || '',
+    '發票/收據號碼': r.invoiceNo || '',
+    '費用類別': r.category || '',
+    '廠區地點': r.location || '',
+    '金額 (NT$)': r.amount || 0,
+    '經手/報帳人': mName(r.paidBy) || '',
+    '繳回狀態': (r.status === 'returned' && r.returnDate) ? '已繳回' : '尚未繳回',
+    '收據繳回日期': r.returnDate || '',
+    '備註說明': r.note || ''
+  }));
+
+  const filename = `公司收據清單_${curMo || '全部'}.xlsx`;
+
+  if (typeof XLSX !== 'undefined') {
+    const ws = XLSX.utils.json_to_sheet(dataRows);
+    ws['!cols'] = [
+      { wch: 14 }, // 日期
+      { wch: 22 }, // 項目事由
+      { wch: 18 }, // 廠商
+      { wch: 16 }, // 發票號碼
+      { wch: 12 }, // 類別
+      { wch: 10 }, // 地點
+      { wch: 12 }, // 金額
+      { wch: 12 }, // 經手人
+      { wch: 12 }, // 狀態
+      { wch: 14 }, // 繳回日期
+      { wch: 25 }  // 備註
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '公司收據清單');
+    XLSX.writeFile(wb, filename);
+    toast(`已匯出 ${list.length} 筆公司收據 Excel 報表！`, 'success');
+  } else {
+    const headers = Object.keys(dataRows[0]);
+    const csv = [headers.join(',')].concat(dataRows.map(row => headers.map(h => `"${String(row[h] || '').replace(/"/g, '""')}"`).join(','))).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `公司收據清單_${curMo || '全部'}.csv`;
+    a.click();
+    toast(`已匯出 ${list.length} 筆公司收據報表！`, 'success');
+  }
+}
 
 // ═══════════════════════════════════════════════
 //  MODALS
