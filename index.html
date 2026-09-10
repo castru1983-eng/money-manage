@@ -469,18 +469,26 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     </div>
     <div>
       <div class="card mb4">
-        <div class="ct">支出項目選項</div>
+        <div class="ct">支出項目選項 (共用金)</div>
         <div id="set-cats"></div>
         <div class="mt4 flex g2i">
-          <input type="text" class="fc" id="new-cat" placeholder="新項目名稱" style="flex:1"/>
+          <input type="text" class="fc" id="new-cat" placeholder="新項目名稱" style="flex:1" onkeydown="if(event.key==='Enter')addCat()"/>
           <button class="btn btn-sec btn-sm" onclick="addCat()">新增</button>
+        </div>
+      </div>
+      <div class="card mb4">
+        <div class="ct">公司收據費用類別</div>
+        <div id="set-rcpt-cats"></div>
+        <div class="mt4 flex g2i">
+          <input type="text" class="fc" id="new-rcpt-cat" placeholder="新收據類別 (例：電信費、水費...)" style="flex:1" onkeydown="if(event.key==='Enter')addReceiptCat()"/>
+          <button class="btn btn-sec btn-sm" onclick="addReceiptCat()">新增</button>
         </div>
       </div>
       <div class="card mb4">
         <div class="ct">地點 / 場所</div>
         <div id="set-locs"></div>
         <div class="mt4 flex g2i">
-          <input type="text" class="fc" id="new-loc" placeholder="新地點名稱" style="flex:1"/>
+          <input type="text" class="fc" id="new-loc" placeholder="新地點名稱" style="flex:1" onkeydown="if(event.key==='Enter')addLoc()"/>
           <button class="btn btn-sec btn-sm" onclick="addLoc()">新增</button>
         </div>
       </div>
@@ -910,7 +918,7 @@ const DEF_CATS = ['房租','水電費','餐飲','交通','採購','娛樂','醫�
 const DEF_LOCS = ['P2','P3','宿舍'];
 const COLORS = ['#63b3ed','#9f7aea','#68d391','#f6ad55','#fc8181','#76e4f7','#fbb6ce'];
 const ICONS = {'房租':'🏠','水電費':'💡','餐飲':'🍱','交通':'🚗','採購':'🛒','娛樂':'🎮','醫療':'🏥','繳款':'📥','注入':'💰','其他':'📌'};
-const DEF_RECEIPT_CATS = ['水電公用', '辦公耗材', '公務修繕', '公務加油', '郵電快遞', '餐飲業務', '清潔用品', '設備採購', '其他'];
+const DEF_RECEIPT_CATS = ['電信費', '水費', '電費', '管理費'];
 
 let CFG = null; // {firebaseConfig, roomCode, currentMemberId}
 let db = null, rRef = null, curPage = 'dashboard', curModule = 'fund', curFundPage = 'dashboard';
@@ -919,6 +927,7 @@ const charts = {};
 
 let D = {
   balance: 0, members: {}, categories: [...DEF_CATS], locations: [...DEF_LOCS],
+  receiptCategories: [...DEF_RECEIPT_CATS],
   transactions: {}, fixedItems: {}, fixedExecutions: {}, deposits: {},
   companyReceipts: {}
 };
@@ -1041,6 +1050,7 @@ const mColor = id => {
   return (mid && D.members[mid]) ? D.members[mid].color : '#63b3ed';
 };
 const catIcon = c => ICONS[c]||'📌';
+const rcptCats = () => (D.receiptCategories && D.receiptCategories.length) ? D.receiptCategories : [...DEF_RECEIPT_CATS];
 
 // ═══════════════════════════════════════════════
 //  PHOTO HELPERS
@@ -1305,6 +1315,13 @@ function renderAppUI() {
   D.fixedExecutions = D.fixedExecutions || {};
   D.companyReceipts = D.companyReceipts || {};
 
+  // 公司收據類別初始化或從舊版預設值升級
+  const oldDefCats = ['水電公用', '辦公耗材', '公務修繕', '公務加油', '郵電快遞', '餐飲業務', '清潔用品', '設備採購', '其他'];
+  if (!D.receiptCategories || !D.receiptCategories.length || JSON.stringify(D.receiptCategories) === JSON.stringify(oldDefCats)) {
+    D.receiptCategories = [...DEF_RECEIPT_CATS];
+    needUpdate = true;
+  }
+
   // 如果總餘額仍為初始 15000，自動清零
   if (D.balance === 15000) {
     D.balance = 0;
@@ -1342,6 +1359,7 @@ async function initRoom() {
     members: ms,
     categories: DEF_CATS,
     locations: DEF_LOCS,
+    receiptCategories: [...DEF_RECEIPT_CATS],
     transactions: {},
     fixedItems: {},
     fixedExecutions: {},
@@ -2217,6 +2235,16 @@ function renderSettings() {
       </div>`).join('');
   }
 
+  const elSetRcptCats = document.getElementById('set-rcpt-cats');
+  if (elSetRcptCats) {
+    const cats = rcptCats();
+    elSetRcptCats.innerHTML = cats.map((c, i) => `
+      <div class="srow">
+        <span style="font-size:13px">🧾 ${c}</span>
+        ${isAdm ? `<button class="btn btn-d btn-icon btn-sm" onclick="delReceiptCat(${i})">🗑</button>` : ''}
+      </div>`).join('');
+  }
+
   const elSetLocs = document.getElementById('set-locs');
   if (elSetLocs) {
     elSetLocs.innerHTML = (D.locations || DEF_LOCS).map((loc, i) => `
@@ -2337,6 +2365,31 @@ async function delLoc(i){
   toast(`已刪除地點「${locName||''}」`, 'info');
   await saveData();
 }
+async function addReceiptCat(){
+  if (!isAdmin()) return toast('權限不足：僅管理者可新增收據類別', 'error');
+  const inp = document.getElementById('new-rcpt-cat');
+  const v = inp ? inp.value.trim() : '';
+  if (!v) return toast('請輸入類別名稱', 'error');
+  D.receiptCategories = (D.receiptCategories && D.receiptCategories.length) ? D.receiptCategories : [...DEF_RECEIPT_CATS];
+  if (D.receiptCategories.includes(v)) return toast('該收據類別已存在', 'error');
+  D.receiptCategories.push(v);
+  if (inp) inp.value = '';
+  toast(`已新增收據類別「${v}」`, 'success');
+  await saveData();
+  renderSettings();
+  fillReceiptFilters(true);
+}
+async function delReceiptCat(i){
+  if (!isAdmin()) return toast('權限不足：僅管理者可刪除收據類別', 'error');
+  D.receiptCategories = (D.receiptCategories && D.receiptCategories.length) ? D.receiptCategories : [...DEF_RECEIPT_CATS];
+  const catName = D.receiptCategories[i];
+  if (!confirm(`確定要刪除「${catName || '此類別'}」這個公司收據類別？`)) return;
+  D.receiptCategories = D.receiptCategories.filter((_, j) => j !== i);
+  toast(`已刪除收據類別「${catName || ''}」`, 'info');
+  await saveData();
+  renderSettings();
+  fillReceiptFilters(true);
+}
 async function resetBalanceZero(){
   if (!isAdmin()) return toast('權限不足：僅管理者可重設餘額', 'error');
   if(!confirm('確定要將共用金總餘額重設為 NT$ 0 嗎？')) return;
@@ -2365,19 +2418,27 @@ function setReceiptTab(tab) {
   renderReceipts();
 }
 
-function fillReceiptFilters() {
+function fillReceiptFilters(force = false) {
   const catSel = document.getElementById('rcpt-cat-filter');
-  if (catSel && catSel.options.length <= 1) {
+  const cats = rcptCats();
+  if (catSel) {
     const curVal = catSel.value;
-    catSel.innerHTML = '<option value="">全部類別</option>' + DEF_RECEIPT_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
-    if (curVal) catSel.value = curVal;
+    const existingOptions = Array.from(catSel.options).slice(1).map(o => o.value);
+    const needRefresh = force || catSel.options.length <= 1 || JSON.stringify(existingOptions) !== JSON.stringify(cats);
+    if (needRefresh) {
+      catSel.innerHTML = '<option value="">全部類別</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (curVal && cats.includes(curVal)) catSel.value = curVal;
+      else catSel.value = '';
+    }
   }
   const locSel = document.getElementById('rcpt-loc-filter');
   if (locSel) {
     const curVal = locSel.value;
     const curLocs = D.locations && D.locations.length ? D.locations : [...DEF_LOCS];
-    locSel.innerHTML = '<option value="">全部地點</option>' + curLocs.map(l => `<option value="${l}">${l}</option>`).join('');
-    if (curVal) locSel.value = curVal;
+    if (force || locSel.options.length <= 1) {
+      locSel.innerHTML = '<option value="">全部地點</option>' + curLocs.map(l => `<option value="${l}">${l}</option>`).join('');
+      if (curVal && curLocs.includes(curVal)) locSel.value = curVal;
+    }
   }
 }
 
@@ -2524,7 +2585,7 @@ function openReceiptModal(id) {
   // Fill categories
   const catSel = document.getElementById('rcpt-cat');
   if (catSel) {
-    catSel.innerHTML = DEF_RECEIPT_CATS.map(c => `<option value="${c}">${c}</option>`).join('');
+    catSel.innerHTML = rcptCats().map(c => `<option value="${c}">${c}</option>`).join('');
   }
 
   // Fill locations
@@ -2558,7 +2619,7 @@ function openReceiptModal(id) {
     document.getElementById('rcpt-date').value = tod();
     document.getElementById('rcpt-inv').value = '';
     document.getElementById('rcpt-vendor').value = '';
-    if (catSel) catSel.value = DEF_RECEIPT_CATS[0];
+    if (catSel) catSel.value = rcptCats()[0] || '';
     const locSel = document.getElementById('rcpt-loc');
     if (locSel) locSel.value = 'P2';
     const payerSel = document.getElementById('rcpt-paidby');
