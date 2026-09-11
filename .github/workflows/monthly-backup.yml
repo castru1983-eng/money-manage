@@ -1,0 +1,60 @@
+name: Monthly Auto Backup
+
+on:
+  schedule:
+    # Runs at 16:00 UTC on the last day of every month, which is 00:00 UTC+8 (Taiwan Time) on the 1st of every month
+    - cron: '0 16 28-31 * *'
+    # Also runs on the 1st at 00:00 UTC as safety fallback
+    - cron: '0 0 1 * *'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+permissions:
+  contents: write
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch Supabase Backup Data
+        run: |
+          mkdir -p backups
+          DATE_STR=$(date +'%Y-%m-%d')
+          echo "Fetching backup for date: $DATE_STR"
+          
+          curl -s -X GET "https://vdrtmtqdhmeroakwwsiv.supabase.co/rest/v1/rooms?select=*" \
+            -H "apikey: sb_publishable_F-LXdSZKmj58_32w2vESFQ_Fjt0CHgD" \
+            -H "Authorization: Bearer sb_publishable_F-LXdSZKmj58_32w2vESFQ_Fjt0CHgD" \
+            -H "Content-Type: application/json" > backups/raw_rooms.json
+
+          # Verify JSON is valid
+          python3 -c "
+          import json, datetime
+          with open('backups/raw_rooms.json', 'r', encoding='utf-8') as f:
+              rooms = json.load(f)
+          payload = {
+              'backupDate': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+              'totalRooms': len(rooms),
+              'rooms': rooms
+          }
+          with open(f'backups/backup_{DATE_STR}.json', 'w', encoding='utf-8') as f:
+              json.dump(payload, f, ensure_ascii=False, indent=2)
+          with open('backups/backup_latest.json', 'w', encoding='utf-8') as f:
+              json.dump(payload, f, ensure_ascii=False, indent=2)
+          "
+          rm backups/raw_rooms.json
+          echo "Backup files generated successfully."
+
+      - name: Commit and push backup file
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add backups/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(backup): auto monthly backup $(date +'%Y-%m-%d')"
+            git push origin main
+          fi

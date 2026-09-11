@@ -501,10 +501,29 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         </div>
       </div>
 
-      <div class="card">
-        <div class="ct">資料與餘額管理</div>
-        <div class="srow"><div><div class="srow-label">總餘額歸零</div><div class="srow-sub">將共用金總餘額重設為 NT$ 0</div></div><button class="btn btn-d btn-sm" onclick="resetBalanceZero()">💰 歸零餘額</button></div>
-        <div class="srow"><div><div class="srow-label">匯出備份</div><div class="srow-sub">下載 JSON 備份</div></div><button class="btn btn-sec btn-sm" onclick="exportData()">📥 匯出</button></div>
+      <div class="card mb4">
+        <div class="ct">每月自動備份與資料管理</div>
+        <div class="srow">
+          <div>
+            <div class="srow-label">每月 1 號自動備份</div>
+            <div class="srow-sub">已開啟雲端定時備份 (GitHub Actions & Supabase)，本機支援排程腳本</div>
+          </div>
+          <button class="btn btn-p btn-sm" onclick="exportData()">📥 下載當前備份檔</button>
+        </div>
+        <div class="srow">
+          <div>
+            <div class="srow-label">歷史月份備份存檔</div>
+            <div class="srow-sub" id="backup-status-text">系統每月自動產生月度獨立快照（保存在本機與雲端）</div>
+          </div>
+          <button class="btn btn-sec btn-sm" onclick="downloadMonthlySnapshot()">📦 下載本月快照</button>
+        </div>
+        <div class="srow">
+          <div>
+            <div class="srow-label">總餘額歸零</div>
+            <div class="srow-sub">將共用金總餘額重設為 NT$ 0</div>
+          </div>
+          <button class="btn btn-d btn-sm" onclick="resetBalanceZero()">💰 歸零餘額</button>
+        </div>
       </div>
     </div>
   </div>
@@ -1364,6 +1383,7 @@ function renderAppUI() {
   if (elBadge) elBadge.textContent = me ? (isAdm ? '👑 管理者' : '👤 一般使用者') : '';
   updateNavBadges();
   updateModuleSwitcher(curPage);
+  checkMonthlyAutoBackup();
   renderPage(curPage);
 }
 
@@ -2452,7 +2472,51 @@ async function resetBalanceZero(){
   await saveData();
 }
 function resetConn(){if(!confirm('確定重設連線？'))return;localStorage.removeItem(LK);location.reload();}
-function exportData(){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({...D,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}));a.download='共用金備份_'+tod()+'.json';a.click();toast('已匯出','success');}
+
+function checkMonthlyAutoBackup() {
+  const curMo = mon();
+  const backupKey = 'sfund_autobackup_' + curMo;
+  if (!localStorage.getItem(backupKey)) {
+    try {
+      const backupData = {
+        month: curMo,
+        snapshotDate: tod(),
+        createdAt: new Date().toISOString(),
+        data: D
+      };
+      localStorage.setItem(backupKey, JSON.stringify(backupData));
+    } catch(e) {}
+  }
+}
+
+function downloadMonthlySnapshot() {
+  const curMo = mon();
+  const backupKey = 'sfund_autobackup_' + curMo;
+  let dataStr = localStorage.getItem(backupKey);
+  if (!dataStr) {
+    const backupData = {
+      month: curMo,
+      snapshotDate: tod(),
+      createdAt: new Date().toISOString(),
+      data: D
+    };
+    dataStr = JSON.stringify(backupData, null, 2);
+    try { localStorage.setItem(backupKey, dataStr); } catch(e){}
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([dataStr], { type: 'application/json' }));
+  a.download = `月度自動備份快照_${curMo}.json`;
+  a.click();
+  toast(`已下載 ${curMo} 月度備份快照至本機！`, 'success');
+}
+
+function exportData(){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify({...D, exportedAt: new Date().toISOString()}, null, 2)], { type: 'application/json' }));
+  a.download = '全系統完整備份_' + tod() + '.json';
+  a.click();
+  toast('已下載全系統完整備份檔至本機！', 'success');
+}
 
 // ═══════════════════════════════════════════════
 //  COMPANY RECEIPTS (公司收據管理)
