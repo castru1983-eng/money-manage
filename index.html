@@ -196,6 +196,8 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 .mo.open{opacity:1;pointer-events:all;}
 .md{background:#0c1018;border:1px solid var(--border);border-radius:var(--r);padding:26px;width:490px;max-width:96vw;max-height:90vh;overflow-y:auto;box-shadow:var(--shL);transform:translateY(20px) scale(.97);transition:transform var(--tr);}
 .mo.open .md{transform:translateY(0) scale(1);}
+@keyframes modalNudge{0%,100%{transform:translateY(0) scale(1);border-color:var(--border);}50%{transform:translateY(0) scale(1.02);border-color:rgba(99,179,237,.6);box-shadow:0 0 24px rgba(99,179,237,.3);}}
+.md.shake{animation:modalNudge .25s ease;}
 .mh{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
 .mt{font-size:16px;font-weight:900;}
 .mc{background:none;border:none;color:var(--t3);cursor:pointer;font-size:17px;padding:4px;line-height:1;transition:color var(--tr);}
@@ -2925,7 +2927,22 @@ function exportReceiptsExcel() {
 // ═══════════════════════════════════════════════
 function openM(id){document.getElementById(id).classList.add('open');}
 function closeM(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.mo').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
+document.querySelectorAll('.mo').forEach(o => {
+  o.addEventListener('click', e => {
+    if (e.target === o) {
+      if (o.id === 'mo-photo') {
+        o.classList.remove('open');
+      } else {
+        const md = o.querySelector('.md');
+        if (md) {
+          md.classList.remove('shake');
+          void md.offsetWidth;
+          md.classList.add('shake');
+        }
+      }
+    }
+  });
+});
 
 function fillMems(selId, emptyText=''){
   const el = document.getElementById(selId);
