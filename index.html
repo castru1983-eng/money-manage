@@ -596,7 +596,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         <select class="fc" id="rcpt-loc-filter" onchange="renderReceipts()" style="width:auto;padding:6px 10px;font-size:12px">
           <option value="">全部地點</option>
         </select>
-        <input type="text" class="fc" id="rcpt-search" placeholder="🔍 搜尋廠商、發票號、經手人、備註..." oninput="renderReceipts()" style="width:230px;padding:6px 10px;font-size:12px"/>
+        <input type="text" class="fc" id="rcpt-search" placeholder="🔍 搜尋廠商、經手人、備註..." oninput="renderReceipts()" style="width:230px;padding:6px 10px;font-size:12px"/>
       </div>
     </div>
 
@@ -609,7 +609,6 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
             <th>廠商 / 開立單位</th>
             <th>費用類別 / 地點</th>
             <th>金額</th>
-            <th>發票/收據號碼</th>
             <th>經手人</th>
             <th>憑證照片</th>
             <th>繳回狀態</th>
@@ -859,42 +858,36 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
         <input type="date" class="fc" id="rcpt-obtain-date"/>
       </div>
       <div class="fg">
-        <label class="fl">金額 (NT$) *</label>
-        <input type="number" class="fc" id="rcpt-amt" placeholder="0" min="1"/>
-      </div>
-    </div>
-
-    <div class="fr">
-      <div class="fg">
         <label class="fl">繳款期限 *</label>
         <input type="date" class="fc" id="rcpt-date"/>
       </div>
-      <div class="fg">
-        <label class="fl">發票 / 收據號碼 (選填)</label>
-        <input type="text" class="fc" id="rcpt-inv" placeholder="例：AB-12345678"/>
-      </div>
     </div>
 
     <div class="fr">
+      <div class="fg">
+        <label class="fl">金額 (NT$) *</label>
+        <input type="number" class="fc" id="rcpt-amt" placeholder="0" min="1"/>
+      </div>
       <div class="fg">
         <label class="fl">廠商 / 開立單位 *</label>
         <select class="fc" id="rcpt-vendor"></select>
       </div>
-      <div class="fg">
-        <label class="fl">費用類別 *</label>
-        <select class="fc" id="rcpt-cat"></select>
-      </div>
     </div>
 
     <div class="fr">
       <div class="fg">
+        <label class="fl">費用類別 *</label>
+        <select class="fc" id="rcpt-cat"></select>
+      </div>
+      <div class="fg">
         <label class="fl">廠區 / 地點</label>
         <select class="fc" id="rcpt-loc"></select>
       </div>
-      <div class="fg">
-        <label class="fl">經手人 / 報帳人</label>
-        <select class="fc" id="rcpt-paidby"></select>
-      </div>
+    </div>
+
+    <div class="fg">
+      <label class="fl">經手人 / 報帳人</label>
+      <select class="fc" id="rcpt-paidby"></select>
     </div>
 
     <div class="fr">
@@ -2663,7 +2656,7 @@ function renderReceipts() {
     if (curReceiptTab === 'unreturned') emptyMsg = '🎉 太棒了！目前無尚未繳回之收據！';
     else if (curReceiptTab === 'returned') emptyMsg = '目前尚無已繳回收據紀錄';
     else if (searchQ) emptyMsg = `找不到符合「${searchQ}」的收據`;
-    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--t3);padding:32px">${emptyMsg}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--t3);padding:32px">${emptyMsg}</td></tr>`;
     return;
   }
 
@@ -2691,7 +2684,6 @@ function renderReceipts() {
         ${r.note ? `<div style="font-size:11px;color:var(--t3);margin-top:2px">💬 ${r.note}</div>` : ''}
       </td>
       <td style="font-weight:900;color:var(--amber);font-size:14px">NT$${fmt(r.amount)}</td>
-      <td>${r.invoiceNo ? `<span class="badge b-blue" style="font-size:11px">${r.invoiceNo}</span>` : '<span style="color:var(--t4)">-</span>'}</td>
       <td>${r.paidBy ? `<span class="badge b-blue" style="font-size:10px">👤 ${mName(r.paidBy)}</span>` : '<span style="color:var(--t4)">-</span>'}</td>
       <td>${photoHtml}</td>
       <td>${statusBadge}</td>
@@ -2747,7 +2739,6 @@ function openReceiptModal(id) {
     document.getElementById('rcpt-obtain-date').value = r.obtainDate || r.date || tod();
     document.getElementById('rcpt-amt').value = r.amount || '';
     document.getElementById('rcpt-date').value = r.date || tod(); // 繳款期限
-    document.getElementById('rcpt-inv').value = r.invoiceNo || '';
     if (r.vendor && vendorSel) vendorSel.value = r.vendor;
     if (r.category && catSel) catSel.value = r.category;
     if (r.location) document.getElementById('rcpt-loc').value = r.location;
@@ -2761,7 +2752,6 @@ function openReceiptModal(id) {
     document.getElementById('rcpt-obtain-date').value = tod();
     document.getElementById('rcpt-amt').value = '';
     document.getElementById('rcpt-date').value = tod(); // 預設今天為繳款期限
-    document.getElementById('rcpt-inv').value = '';
     if (vendorSel) vendorSel.value = rcptVendors()[0] || '';
     if (catSel) catSel.value = rcptCats()[0] || '';
     const locSel = document.getElementById('rcpt-loc');
@@ -2782,7 +2772,6 @@ async function submitReceiptModal() {
   const obtainDate = document.getElementById('rcpt-obtain-date').value;
   const amt = parseFloat(document.getElementById('rcpt-amt').value);
   const date = document.getElementById('rcpt-date').value; // 繳款期限
-  const inv = document.getElementById('rcpt-inv').value.trim();
   const vendor = document.getElementById('rcpt-vendor').value;
   const cat = document.getElementById('rcpt-cat').value;
   const loc = document.getElementById('rcpt-loc').value;
@@ -2808,7 +2797,6 @@ async function submitReceiptModal() {
     name: `${vendor || ''} ${cat || ''}`.trim() || '公司收據',
     amount: amt,
     date,
-    invoiceNo: inv,
     vendor,
     category: cat,
     location: loc,
@@ -2882,7 +2870,6 @@ function exportReceiptsExcel() {
     '費用類別': r.category || '',
     '廠區地點': r.location || '',
     '金額 (NT$)': r.amount || 0,
-    '發票/收據號碼': r.invoiceNo || '',
     '經手/報帳人': mName(r.paidBy) || '',
     '繳回狀態': (r.status === 'returned' && r.returnDate) ? '已繳回' : '尚未繳回',
     '收據繳回日期': r.returnDate || '',
@@ -2900,7 +2887,6 @@ function exportReceiptsExcel() {
       { wch: 14 }, // 費用類別
       { wch: 10 }, // 地點
       { wch: 12 }, // 金額
-      { wch: 16 }, // 發票號碼
       { wch: 12 }, // 經手人
       { wch: 12 }, // 狀態
       { wch: 14 }, // 繳回日期
