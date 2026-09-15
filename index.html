@@ -900,7 +900,7 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       </div>
       <div class="fg" id="fg-rcpt-retdate">
         <label class="fl">收據繳回日期</label>
-        <input type="date" class="fc" id="rcpt-retdate"/>
+        <input type="date" class="fc" id="rcpt-retdate" onchange="onReceiptRetDateChange(this.value)" oninput="onReceiptRetDateChange(this.value)"/>
       </div>
     </div>
 
@@ -1718,7 +1718,7 @@ function updateNavBadges() {
     }
   }
 
-  const unretRcpts = receipts().filter(r => r.status === 'unreturned' || !r.returnDate);
+  const unretRcpts = receipts().filter(r => !isRcptReturned(r));
   const elRcptBadge = document.getElementById('nav-receipts-badge');
   if (elRcptBadge) {
     elRcptBadge.innerHTML = unretRcpts.length > 0
@@ -2517,6 +2517,7 @@ function exportData(){
 //  COMPANY RECEIPTS (公司收據管理)
 // ═══════════════════════════════════════════════
 const receipts = () => Object.entries(D.companyReceipts || {}).map(([id, r]) => ({ id, ...r }));
+const isRcptReturned = (r) => !!(r && (r.returnDate || r.status === 'returned'));
 
 function setReceiptTab(tab) {
   curReceiptTab = tab;
@@ -2586,9 +2587,9 @@ function renderReceipts() {
   // 統計計算 (以繳款期限或取得日期為月份統計)
   const curMoRcpts = curMo ? allRcpts.filter(r => ((r.date || r.obtainDate || '').startsWith(curMo))) : allRcpts;
   const curMoTot = curMoRcpts.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const unreturnedList = allRcpts.filter(r => r.status === 'unreturned' || !r.returnDate);
+  const unreturnedList = allRcpts.filter(r => !isRcptReturned(r));
   const unreturnedTot = unreturnedList.reduce((s, r) => s + (Number(r.amount) || 0), 0);
-  const returnedList = allRcpts.filter(r => r.status === 'returned' && r.returnDate);
+  const returnedList = allRcpts.filter(r => isRcptReturned(r));
   const returnedTot = returnedList.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   const curYear = curMo ? curMo.slice(0, 4) : new Date().getFullYear().toString();
@@ -2611,9 +2612,9 @@ function renderReceipts() {
   // 篩選清單
   let displayList = allRcpts;
   if (curReceiptTab === 'unreturned') {
-    displayList = displayList.filter(r => r.status === 'unreturned' || !r.returnDate);
+    displayList = displayList.filter(r => !isRcptReturned(r));
   } else if (curReceiptTab === 'returned') {
-    displayList = displayList.filter(r => r.status === 'returned' && r.returnDate);
+    displayList = displayList.filter(r => isRcptReturned(r));
   }
 
   if (curMo) {
@@ -2661,9 +2662,10 @@ function renderReceipts() {
   }
 
   tbody.innerHTML = displayList.map(r => {
-    const isReturned = r.status === 'returned' && r.returnDate;
+    const isReturned = isRcptReturned(r);
+    const retDateText = r.returnDate || '已繳回';
     const statusBadge = isReturned
-      ? `<span class="badge b-green" style="cursor:pointer" onclick="quickToggleReceiptStatus('${r.id}')" title="點擊切換為未繳回">✅ 已繳回 (${r.returnDate})</span>`
+      ? `<span class="badge b-green" style="cursor:pointer" onclick="quickToggleReceiptStatus('${r.id}')" title="點擊切換為未繳回">✅ 已繳回 (${retDateText})</span>`
       : `<span class="badge b-amber" style="cursor:pointer;animation:pulse 1.5s infinite" onclick="quickToggleReceiptStatus('${r.id}')" title="點擊標記為已繳回">⚠️ 尚未繳回</span>`;
 
     const photoHtml = r.photo
@@ -2707,6 +2709,16 @@ function onReceiptStatusChange(val) {
   }
 }
 
+function onReceiptRetDateChange(val) {
+  const statusEl = document.getElementById('rcpt-status');
+  if (!statusEl) return;
+  if (val) {
+    statusEl.value = 'returned';
+  } else {
+    statusEl.value = 'unreturned';
+  }
+}
+
 function openReceiptModal(id) {
   const isEdit = !!id;
   document.getElementById('rcpt-mtitle').textContent = isEdit ? '✏️ 編輯公司收據' : '🧾 新增公司收據';
@@ -2743,8 +2755,8 @@ function openReceiptModal(id) {
     if (r.category && catSel) catSel.value = r.category;
     if (r.location) document.getElementById('rcpt-loc').value = r.location;
     if (r.paidBy) document.getElementById('rcpt-paidby').value = r.paidBy;
-    const statusVal = r.status === 'returned' ? 'returned' : 'unreturned';
-    document.getElementById('rcpt-status').value = statusVal;
+    const isRet = isRcptReturned(r);
+    document.getElementById('rcpt-status').value = isRet ? 'returned' : 'unreturned';
     document.getElementById('rcpt-retdate').value = r.returnDate || '';
     document.getElementById('rcpt-note').value = r.note || '';
     setPhotoPreview(r.photo, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-img');
@@ -2776,9 +2788,19 @@ async function submitReceiptModal() {
   const cat = document.getElementById('rcpt-cat').value;
   const loc = document.getElementById('rcpt-loc').value;
   const paidBy = document.getElementById('rcpt-paidby').value || null;
-  const status = document.getElementById('rcpt-status').value;
+  let status = document.getElementById('rcpt-status').value;
   let retDate = document.getElementById('rcpt-retdate').value || null;
-  if (status === 'returned' && !retDate) retDate = tod();
+
+  // 雙向智慧連動：只要有填繳回日期，狀態必然判定為已繳回；若選擇已繳回但未填日期，預設今天
+  if (retDate) {
+    status = 'returned';
+  } else if (status === 'returned') {
+    retDate = tod();
+  } else {
+    status = 'unreturned';
+    retDate = null;
+  }
+
   const note = document.getElementById('rcpt-note').value.trim();
   const photo = await getPhotoValue('rcpt-photo-input', 'rcpt-photo-val');
 
@@ -2819,7 +2841,7 @@ async function quickToggleReceiptStatus(id) {
   const r = D.companyReceipts && D.companyReceipts[id];
   if (!r) return;
   const itemTitle = `${r.vendor || ''} ${r.category || ''}`.trim() || r.name || '收據';
-  const isNowReturned = (r.status === 'returned' && r.returnDate);
+  const isNowReturned = isRcptReturned(r);
   if (isNowReturned) {
     r.status = 'unreturned';
     r.returnDate = null;
@@ -2863,18 +2885,21 @@ function exportReceiptsExcel() {
 
   list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-  const dataRows = list.map(r => ({
-    '取得日期': r.obtainDate || r.date || '',
-    '繳款期限': r.date || '',
-    '廠商/開立單位': r.vendor || '',
-    '費用類別': r.category || '',
-    '廠區地點': r.location || '',
-    '金額 (NT$)': r.amount || 0,
-    '經手/報帳人': mName(r.paidBy) || '',
-    '繳回狀態': (r.status === 'returned' && r.returnDate) ? '已繳回' : '尚未繳回',
-    '收據繳回日期': r.returnDate || '',
-    '備註說明': r.note || ''
-  }));
+  const dataRows = list.map(r => {
+    const isRet = isRcptReturned(r);
+    return {
+      '取得日期': r.obtainDate || r.date || '',
+      '繳款期限': r.date || '',
+      '廠商/開立單位': r.vendor || '',
+      '費用類別': r.category || '',
+      '廠區地點': r.location || '',
+      '金額 (NT$)': r.amount || 0,
+      '經手/報帳人': mName(r.paidBy) || '',
+      '繳回狀態': isRet ? '已繳回' : '尚未繳回',
+      '收據繳回日期': isRet ? (r.returnDate || '已繳回') : '',
+      '備註說明': r.note || ''
+    };
+  });
 
   const filename = `公司收據清單_${curMo || '全部'}.xlsx`;
 
