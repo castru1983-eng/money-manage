@@ -586,7 +586,9 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       </div>
 
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input type="month" class="fc" id="rcpt-mo" onchange="renderReceipts()" style="width:auto;padding:6px 10px;font-size:12px"/>
+        <select class="fc" id="rcpt-mo" onchange="renderReceipts()" style="width:auto;padding:6px 10px;font-size:12px">
+          <option value="">📅 全部月份</option>
+        </select>
         <select class="fc" id="rcpt-vendor-filter" onchange="renderReceipts()" style="width:auto;padding:6px 10px;font-size:12px">
           <option value="">全部廠商</option>
         </select>
@@ -2568,13 +2570,41 @@ function fillReceiptFilters(force = false) {
   }
 }
 
+function fillReceiptMonthOptions() {
+  const elMo = document.getElementById('rcpt-mo');
+  if (!elMo) return;
+  const curVal = elMo.value;
+
+  // 收集所有收據的取得日期月份
+  const monthSet = new Set();
+  receipts().forEach(r => {
+    const d = r.obtainDate || r.date || '';
+    if (d.length >= 7) monthSet.add(d.slice(0, 7));
+  });
+
+  // 依降序排列
+  const months = Array.from(monthSet).sort().reverse();
+
+  elMo.innerHTML = '<option value="">📅 全部月份</option>' +
+    months.map(m => `<option value="${m}">${m.replace('-', '年')}月</option>`).join('');
+
+  // 保持之前選擇的值；若沒有選擇過，預設當月
+  if (curVal && months.includes(curVal)) {
+    elMo.value = curVal;
+  } else if (!curVal) {
+    const thisMonth = mon();
+    if (months.includes(thisMonth)) elMo.value = thisMonth;
+    else elMo.value = '';
+  }
+}
+
 function renderReceipts() {
   updateNavBadges();
   fillReceiptFilters();
+  fillReceiptMonthOptions();
   const isAdm = isAdmin();
 
   const elMo = document.getElementById('rcpt-mo');
-  if (elMo && !elMo.value) elMo.value = mon();
   const curMo = elMo ? elMo.value : '';
 
   const vendorFilter = document.getElementById('rcpt-vendor-filter')?.value || '';
@@ -2584,8 +2614,8 @@ function renderReceipts() {
 
   const allRcpts = receipts();
 
-  // 統計計算 (以繳款期限或取得日期為月份統計)
-  const curMoRcpts = curMo ? allRcpts.filter(r => ((r.date || r.obtainDate || '').startsWith(curMo))) : allRcpts;
+  // 統計計算 (以取得日期為月份統計基準)
+  const curMoRcpts = curMo ? allRcpts.filter(r => (r.obtainDate || r.date || '').startsWith(curMo)) : allRcpts;
   const curMoTot = curMoRcpts.reduce((s, r) => s + (Number(r.amount) || 0), 0);
   const unreturnedList = allRcpts.filter(r => !isRcptReturned(r));
   const unreturnedTot = unreturnedList.reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -2593,7 +2623,7 @@ function renderReceipts() {
   const returnedTot = returnedList.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   const curYear = curMo ? curMo.slice(0, 4) : new Date().getFullYear().toString();
-  const yearRcpts = allRcpts.filter(r => ((r.date || r.obtainDate || '').startsWith(curYear)));
+  const yearRcpts = allRcpts.filter(r => (r.obtainDate || r.date || '').startsWith(curYear));
   const yearTot = yearRcpts.reduce((s, r) => s + (Number(r.amount) || 0), 0);
 
   const elCurTot = document.getElementById('rcpt-stat-cur-tot'); if (elCurTot) elCurTot.textContent = fmt(curMoTot);
@@ -2617,8 +2647,9 @@ function renderReceipts() {
     displayList = displayList.filter(r => isRcptReturned(r));
   }
 
-  if (curMo) {
-    displayList = displayList.filter(r => (r.date || r.obtainDate || '').startsWith(curMo));
+  // 月份篩選：以取得日期(obtainDate)為主（「全部收據」Tab 不套用月份篩選）
+  if (curMo && curReceiptTab !== 'all') {
+    displayList = displayList.filter(r => (r.obtainDate || r.date || '').startsWith(curMo));
   }
   if (vendorFilter) {
     displayList = displayList.filter(r => r.vendor === vendorFilter);
