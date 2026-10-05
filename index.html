@@ -253,11 +253,32 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 @media(max-width:640px){.g2,.g3,.g4{grid-template-columns:1fr;}.fr{grid-template-columns:1fr;}.hero-amount{font-size:36px;}}
 /* ── PHOTO UPLOAD & PREVIEW ── */
 .photo-upload-box{margin-top:4px;}
-.photo-preview-wrap{display:flex;align-items:center;gap:10px;margin-top:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--rsm);padding:8px;}
-.photo-preview-img{width:54px;height:54px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:transform var(--tr);}
-.photo-preview-img:hover{transform:scale(1.05);}
+.photo-upload-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.photo-preview-wrap{margin-top:8px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:var(--rsm);padding:10px;}
+.photo-preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;font-size:11px;color:var(--t3);}
+.photo-preview-count{font-weight:700;color:var(--blue);}
+.photo-preview-grid{display:flex;flex-wrap:wrap;gap:8px;}
+.photo-preview-item{position:relative;width:58px;height:58px;border-radius:8px;border:1px solid var(--border);background:var(--bg2);overflow:hidden;box-shadow:0 2px 5px rgba(0,0,0,0.2);transition:all var(--tr);}
+.photo-preview-item:hover{transform:scale(1.05);border-color:var(--blue);}
+.photo-preview-item img{width:100%;height:100%;object-fit:cover;cursor:pointer;display:block;}
+.photo-del-btn{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.75);color:#fff;border:none;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;line-height:1;transition:background 0.15s;}
+.photo-del-btn:hover{background:var(--red);}
+
+.photo-thumb-container{position:relative;display:inline-flex;align-items:center;vertical-align:middle;cursor:pointer;}
 .photo-thumb{width:32px;height:32px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer;transition:transform var(--tr);vertical-align:middle;flex-shrink:0;}
 .photo-thumb:hover{transform:scale(1.15);border-color:var(--blue);}
+.photo-count-badge{position:absolute;top:-4px;right:-5px;background:var(--blue);color:#fff;font-size:10px;font-weight:800;border-radius:10px;padding:0 4px;line-height:14px;box-shadow:0 1px 3px rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);}
+
+/* Lightbox Photo Viewer */
+.photo-viewer-stage{position:relative;margin:12px 0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);border:1px solid var(--border);border-radius:var(--rsm);min-height:220px;overflow:hidden;}
+.photo-nav-btn{position:absolute;top:50%;transform:translateY(-50%);background:rgba(15,23,42,0.85);color:#fff;border:1px solid rgba(255,255,255,0.25);width:38px;height:38px;border-radius:50%;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:10;transition:all var(--tr);backdrop-filter:blur(4px);}
+.photo-nav-btn:hover{background:var(--blue);transform:translateY(-50%) scale(1.1);}
+.photo-nav-btn.prev{left:10px;}
+.photo-nav-btn.next{right:10px;}
+.photo-viewer-strip{display:flex;justify-content:center;gap:6px;margin:8px 0;overflow-x:auto;padding:4px 2px;}
+.photo-strip-thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;border:2px solid transparent;cursor:pointer;opacity:0.5;transition:all var(--tr);}
+.photo-strip-thumb:hover{opacity:0.85;}
+.photo-strip-thumb.active{opacity:1;border-color:var(--blue);transform:scale(1.06);box-shadow:0 0 6px rgba(66,153,225,0.6);}
 </style>
 </head>
 <body>
@@ -637,13 +658,19 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     <div class="fg"><label class="fl">日期</label><input type="date" class="fc" id="f-date"/></div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="f-note" placeholder="說明資金來源..."/></div>
     <div class="fg">
-      <label class="fl">📷 上傳照片 / 憑證 (選填)</label>
+      <label class="fl">📷 上傳照片 / 憑證 (選填，可選多張)</label>
       <div class="photo-upload-box">
-        <input type="file" id="f-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'f-photo-prev', 'f-photo-val', 'f-photo-img')"/>
-        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('f-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <input type="file" id="f-photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this, 'f-photo-prev', 'f-photo-val', 'f-photo-grid')"/>
+        <div class="photo-upload-actions">
+          <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('f-photo-input').click()">🖼️ 選擇照片 / 拍照 (可多選)</button>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val', 'f-photo-grid')">✕ 清空照片</button>
+        </div>
         <div id="f-photo-prev" class="photo-preview-wrap" style="display:none">
-          <img id="f-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
-          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val')">✕ 移除照片</button>
+          <div class="photo-preview-header">
+            <span class="photo-preview-count">已選取 0 張照片</span>
+            <span>點擊縮圖可放大 · 點 ✕ 移除單張</span>
+          </div>
+          <div id="f-photo-grid" class="photo-preview-grid"></div>
         </div>
         <input type="hidden" id="f-photo-val" value=""/>
       </div>
@@ -666,13 +693,19 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="d-note" placeholder="例如：2024年7月份..."/></div>
     <div class="fg">
-      <label class="fl">📷 上傳照片 / 匯款憑證 (選填)</label>
+      <label class="fl">📷 上傳照片 / 匯款憑證 (選填，可選多張)</label>
       <div class="photo-upload-box">
-        <input type="file" id="d-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'd-photo-prev', 'd-photo-val', 'd-photo-img')"/>
-        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('d-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <input type="file" id="d-photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this, 'd-photo-prev', 'd-photo-val', 'd-photo-grid')"/>
+        <div class="photo-upload-actions">
+          <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('d-photo-input').click()">🖼️ 選擇照片 / 拍照 (可多選)</button>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('d-photo-input', 'd-photo-prev', 'd-photo-val', 'd-photo-grid')">✕ 清空照片</button>
+        </div>
         <div id="d-photo-prev" class="photo-preview-wrap" style="display:none">
-          <img id="d-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
-          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('d-photo-input', 'd-photo-prev', 'd-photo-val')">✕ 移除照片</button>
+          <div class="photo-preview-header">
+            <span class="photo-preview-count">已選取 0 張照片</span>
+            <span>點擊縮圖可放大 · 點 ✕ 移除單張</span>
+          </div>
+          <div id="d-photo-grid" class="photo-preview-grid"></div>
         </div>
         <input type="hidden" id="d-photo-val" value=""/>
       </div>
@@ -699,13 +732,19 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="fix-note" placeholder="例如：7月份電費單據說明..."/></div>
     <div class="fg">
-      <label class="fl">📷 上傳照片 / 單據範本 (選填)</label>
+      <label class="fl">📷 上傳照片 / 單據範本 (選填，可選多張)</label>
       <div class="photo-upload-box">
-        <input type="file" id="fix-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-img')"/>
-        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('fix-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <input type="file" id="fix-photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-grid')"/>
+        <div class="photo-upload-actions">
+          <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('fix-photo-input').click()">🖼️ 選擇照片 / 拍照 (可多選)</button>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val', 'fix-photo-grid')">✕ 清空照片</button>
+        </div>
         <div id="fix-photo-prev" class="photo-preview-wrap" style="display:none">
-          <img id="fix-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
-          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val')">✕ 移除照片</button>
+          <div class="photo-preview-header">
+            <span class="photo-preview-count">已選取 0 張照片</span>
+            <span>點擊縮圖可放大 · 點 ✕ 移除單張</span>
+          </div>
+          <div id="fix-photo-grid" class="photo-preview-grid"></div>
         </div>
         <input type="hidden" id="fix-photo-val" value=""/>
       </div>
@@ -730,13 +769,19 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     </div>
     <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="exec-note" placeholder="選填..."/></div>
     <div class="fg">
-      <label class="fl">📷 上傳照片 / 繳費單據 (選填)</label>
+      <label class="fl">📷 上傳照片 / 繳費單據 (選填，可選多張)</label>
       <div class="photo-upload-box">
-        <input type="file" id="exec-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-img')"/>
-        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('exec-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <input type="file" id="exec-photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-grid')"/>
+        <div class="photo-upload-actions">
+          <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('exec-photo-input').click()">🖼️ 選擇照片 / 拍照 (可多選)</button>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('exec-photo-input', 'exec-photo-prev', 'exec-photo-val', 'exec-photo-grid')">✕ 清空照片</button>
+        </div>
         <div id="exec-photo-prev" class="photo-preview-wrap" style="display:none">
-          <img id="exec-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
-          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('exec-photo-input', 'exec-photo-prev', 'exec-photo-val')">✕ 移除照片</button>
+          <div class="photo-preview-header">
+            <span class="photo-preview-count">已選取 0 張照片</span>
+            <span>點擊縮圖可放大 · 點 ✕ 移除單張</span>
+          </div>
+          <div id="exec-photo-grid" class="photo-preview-grid"></div>
         </div>
         <input type="hidden" id="exec-photo-val" value=""/>
       </div>
@@ -796,13 +841,22 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
 </div>
 
 <div class="mo" id="mo-photo">
-  <div class="md" style="width:540px;text-align:center">
-    <div class="mh"><div class="mt">🖼️ 查看照片 / 憑證</div><button class="mc" onclick="closeM('mo-photo')">✕</button></div>
-    <div style="margin:12px 0">
-      <img id="pv-img" src="" style="max-width:100%;max-height:68vh;border-radius:var(--rsm);border:1px solid var(--border);object-fit:contain;box-shadow:var(--sh)"/>
+  <div class="md" style="width:680px;max-width:96vw;text-align:center">
+    <div class="mh">
+      <div class="mt" id="pv-title">🖼️ 查看照片 / 憑證</div>
+      <button class="mc" onclick="closeM('mo-photo')">✕</button>
     </div>
-    <div class="mf" style="justify-space-between;align-items:center">
-      <a id="pv-download" href="#" download="photo.jpg" class="btn btn-sec btn-sm" style="margin-right:auto">📥 下載大圖</a>
+    <div class="photo-viewer-stage">
+      <button type="button" id="pv-prev-btn" class="photo-nav-btn prev" onclick="changeViewerPhoto(-1)" title="上一張 (←)" style="display:none">❮</button>
+      <img id="pv-img" src="" style="max-width:100%;max-height:68vh;border-radius:var(--rsm);object-fit:contain;box-shadow:var(--sh);transition:opacity 0.2s"/>
+      <button type="button" id="pv-next-btn" class="photo-nav-btn next" onclick="changeViewerPhoto(1)" title="下一張 (→)" style="display:none">❯</button>
+    </div>
+    <div id="pv-strip" class="photo-viewer-strip" style="display:none"></div>
+    <div class="mf" style="justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:10px">
+        <a id="pv-download" href="#" download="photo.jpg" class="btn btn-sec btn-sm">📥 下載此照片</a>
+        <span id="pv-counter" class="badge b-blue" style="display:none;font-size:11px">1 / 1</span>
+      </div>
       <button class="btn btn-p btn-sm" onclick="closeM('mo-photo')">關閉</button>
     </div>
   </div>
@@ -825,13 +879,19 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
       <div class="fg"><label class="fl">備註</label><input type="text" class="fc" id="txe-note" placeholder="選填..."/></div>
     </div>
     <div class="fg">
-      <label class="fl">📷 上傳照片 / 發票憑證 (選填)</label>
+      <label class="fl">📷 上傳照片 / 發票憑證 (選填，可選多張)</label>
       <div class="photo-upload-box">
-        <input type="file" id="txe-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'txe-photo-prev', 'txe-photo-val', 'txe-photo-img')"/>
-        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('txe-photo-input').click()">🖼️ 選擇照片 / 拍照</button>
+        <input type="file" id="txe-photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this, 'txe-photo-prev', 'txe-photo-val', 'txe-photo-grid')"/>
+        <div class="photo-upload-actions">
+          <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('txe-photo-input').click()">🖼️ 選擇照片 / 拍照 (可多選)</button>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('txe-photo-input', 'txe-photo-prev', 'txe-photo-val', 'txe-photo-grid')">✕ 清空照片</button>
+        </div>
         <div id="txe-photo-prev" class="photo-preview-wrap" style="display:none">
-          <img id="txe-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大"/>
-          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('txe-photo-input', 'txe-photo-prev', 'txe-photo-val')">✕ 移除照片</button>
+          <div class="photo-preview-header">
+            <span class="photo-preview-count">已選取 0 張照片</span>
+            <span>點擊縮圖可放大 · 點 ✕ 移除單張</span>
+          </div>
+          <div id="txe-photo-grid" class="photo-preview-grid"></div>
         </div>
         <input type="hidden" id="txe-photo-val" value=""/>
       </div>
@@ -912,13 +972,19 @@ input[type="month"]::-webkit-calendar-picker-indicator:hover {
     </div>
 
     <div class="fg">
-      <label class="fl">📷 上傳收據 / 發票憑證照片</label>
+      <label class="fl">📷 上傳收據 / 發票憑證照片 (選填，可選多張)</label>
       <div class="photo-upload-box">
-        <input type="file" id="rcpt-photo-input" accept="image/*" style="display:none" onchange="handlePhotoSelect(this, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-img')"/>
-        <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('rcpt-photo-input').click()">🖼️ 選擇照片 / 手機拍照</button>
+        <input type="file" id="rcpt-photo-input" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(this, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-grid')"/>
+        <div class="photo-upload-actions">
+          <button type="button" class="btn btn-sec btn-sm" onclick="document.getElementById('rcpt-photo-input').click()">🖼️ 選擇照片 / 手機拍照 (可多選)</button>
+          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('rcpt-photo-input', 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-grid')">✕ 清空照片</button>
+        </div>
         <div id="rcpt-photo-prev" class="photo-preview-wrap" style="display:none">
-          <img id="rcpt-photo-img" src="" class="photo-preview-img" onclick="viewPhoto(this.src)" title="點擊放大檢視"/>
-          <button type="button" class="btn btn-d btn-sm btn-icon" onclick="clearPhoto('rcpt-photo-input', 'rcpt-photo-prev', 'rcpt-photo-val')">✕ 移除照片</button>
+          <div class="photo-preview-header">
+            <span class="photo-preview-count">已選取 0 張照片</span>
+            <span>點擊縮圖可放大 · 點 ✕ 移除單張</span>
+          </div>
+          <div id="rcpt-photo-grid" class="photo-preview-grid"></div>
         </div>
         <input type="hidden" id="rcpt-photo-val" value=""/>
       </div>
@@ -1111,60 +1177,289 @@ function compressImage(file, maxSide = 900, quality = 0.75) {
   });
 }
 
-function handlePhotoSelect(inputEl, prevWrapId, hiddenValId, prevImgId) {
-  const file = inputEl.files[0];
-  if (!file) return;
-  compressImage(file).then(base64 => {
-    if (!base64) return;
-    document.getElementById(hiddenValId).value = base64;
-    const imgEl = document.getElementById(prevImgId);
-    if (imgEl) imgEl.src = base64;
-    const wrap = document.getElementById(prevWrapId);
-    if (wrap) wrap.style.display = 'flex';
-  });
+function getItemPhotos(item) {
+  if (!item) return [];
+  if (Array.isArray(item.photos) && item.photos.length) return item.photos;
+  if (typeof item.photos === 'string' && item.photos.trim()) {
+    try {
+      const p = JSON.parse(item.photos);
+      if (Array.isArray(p) && p.length) return p;
+    } catch(e) {}
+    return [item.photos];
+  }
+  if (item.photo) {
+    if (typeof item.photo === 'string' && item.photo.startsWith('[')) {
+      try {
+        const p = JSON.parse(item.photo);
+        if (Array.isArray(p) && p.length) return p;
+      } catch(e) {}
+    }
+    return [item.photo];
+  }
+  return [];
 }
 
-function clearPhoto(fileInputId, prevWrapId, hiddenValId) {
+async function handlePhotoSelect(inputEl, prevWrapId, hiddenValId, gridId) {
+  const files = Array.from(inputEl.files || []);
+  if (!files.length) return;
+
+  let currentPhotos = [];
+  const hiddenInput = document.getElementById(hiddenValId);
+  if (hiddenInput && hiddenInput.value) {
+    try {
+      const parsed = JSON.parse(hiddenInput.value);
+      if (Array.isArray(parsed)) currentPhotos = parsed;
+      else if (typeof parsed === 'string') currentPhotos = [parsed];
+    } catch(e) {
+      if (hiddenInput.value) currentPhotos = [hiddenInput.value];
+    }
+  }
+
+  const btn = inputEl.parentElement.querySelector('button[type="button"]');
+  const origText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `⏳ 壓縮處理中 (${files.length}張)...`;
+  }
+
+  try {
+    for (const file of files) {
+      const b64 = await compressImage(file, 900, 0.75);
+      if (b64) currentPhotos.push(b64);
+    }
+    renderPhotoPreviews(currentPhotos, prevWrapId, hiddenValId, gridId);
+  } catch (err) {
+    console.error('照片處理失敗:', err);
+    toast('部分照片處理失敗', 'error');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origText;
+    }
+    inputEl.value = '';
+  }
+}
+
+function renderPhotoPreviews(photos, prevWrapId, hiddenValId, gridId) {
+  const list = Array.isArray(photos) ? photos : (photos ? [photos] : []);
+  const hiddenInput = document.getElementById(hiddenValId);
+  const wrap = document.getElementById(prevWrapId);
+  const grid = document.getElementById(gridId);
+  if (hiddenInput) hiddenInput.value = list.length ? JSON.stringify(list) : '';
+
+  if (!list.length) {
+    if (wrap) wrap.style.display = 'none';
+    if (grid) grid.innerHTML = '';
+    return;
+  }
+
+  if (wrap) wrap.style.display = 'block';
+
+  const countEl = wrap.querySelector('.photo-preview-count');
+  if (countEl) countEl.textContent = `已選取 ${list.length} 張照片`;
+
+  if (grid) {
+    grid.innerHTML = list.map((src, idx) => `
+      <div class="photo-preview-item" title="第 ${idx + 1} 張照片 (點擊放大)">
+        <img src="${src}" onclick="viewPhotoInForm('${hiddenValId}', ${idx})"/>
+        <button type="button" class="photo-del-btn" onclick="removeSinglePhoto('${prevWrapId}', '${hiddenValId}', '${gridId}', ${idx})" title="移除此照片">✕</button>
+      </div>
+    `).join('');
+  }
+}
+
+function removeSinglePhoto(prevWrapId, hiddenValId, gridId, removeIdx) {
+  const hiddenInput = document.getElementById(hiddenValId);
+  let list = [];
+  if (hiddenInput && hiddenInput.value) {
+    try {
+      const parsed = JSON.parse(hiddenInput.value);
+      if (Array.isArray(parsed)) list = parsed;
+    } catch(e) {}
+  }
+  list.splice(removeIdx, 1);
+  renderPhotoPreviews(list, prevWrapId, hiddenValId, gridId);
+}
+
+function clearPhoto(fileInputId, prevWrapId, hiddenValId, gridId) {
   const input = document.getElementById(fileInputId);
   if (input) input.value = '';
-  const hidden = document.getElementById(hiddenValId);
-  if (hidden) hidden.value = '';
-  const prev = document.getElementById(prevWrapId);
-  if (prev) prev.style.display = 'none';
+  renderPhotoPreviews([], prevWrapId, hiddenValId, gridId);
 }
 
-function setPhotoPreview(base64, prevWrapId, hiddenValId, prevImgId) {
-  const hidden = document.getElementById(hiddenValId);
-  const prev = document.getElementById(prevWrapId);
-  const imgEl = document.getElementById(prevImgId);
-  if (base64) {
-    if (hidden) hidden.value = base64;
-    if (imgEl) imgEl.src = base64;
-    if (prev) prev.style.display = 'flex';
-  } else {
-    if (hidden) hidden.value = '';
-    if (prev) prev.style.display = 'none';
+function setPhotoPreview(photosOrPhoto, prevWrapId, hiddenValId, gridId) {
+  let list = [];
+  if (Array.isArray(photosOrPhoto)) {
+    list = photosOrPhoto;
+  } else if (typeof photosOrPhoto === 'string' && photosOrPhoto.trim()) {
+    try {
+      const p = JSON.parse(photosOrPhoto);
+      list = Array.isArray(p) ? p : [photosOrPhoto];
+    } catch(e) {
+      list = [photosOrPhoto];
+    }
   }
+  renderPhotoPreviews(list, prevWrapId, hiddenValId, gridId);
+}
+
+async function getPhotoData(fileInputId, hiddenValId) {
+  const hiddenInput = document.getElementById(hiddenValId);
+  let list = [];
+  if (hiddenInput && hiddenInput.value) {
+    try {
+      const parsed = JSON.parse(hiddenInput.value);
+      if (Array.isArray(parsed)) list = parsed;
+      else if (typeof parsed === 'string') list = [parsed];
+    } catch(e) {
+      if (hiddenInput.value) list = [hiddenInput.value];
+    }
+  }
+  return {
+    photos: list.length ? list : null,
+    photo: list.length ? list[0] : null
+  };
 }
 
 async function getPhotoValue(fileInputId, hiddenValId) {
-  const fileInput = document.getElementById(fileInputId);
-  if (fileInput && fileInput.files && fileInput.files[0]) {
-    const compressed = await compressImage(fileInput.files[0]);
-    if (compressed) return compressed;
-  }
-  const hiddenInput = document.getElementById(hiddenValId);
-  return hiddenInput ? (hiddenInput.value || null) : null;
+  const data = await getPhotoData(fileInputId, hiddenValId);
+  return data.photo;
 }
 
-function viewPhoto(url) {
-  if (!url) return;
-  const img = document.getElementById('pv-img');
-  const dl = document.getElementById('pv-download');
-  if (img) img.src = url;
-  if (dl) dl.href = url;
+function viewPhotoInForm(hiddenValId, idx) {
+  const hiddenInput = document.getElementById(hiddenValId);
+  if (!hiddenInput || !hiddenInput.value) return;
+  try {
+    const list = JSON.parse(hiddenInput.value);
+    if (Array.isArray(list) && list.length) {
+      viewPhoto(list, idx, '上傳預覽');
+    }
+  } catch(e) {
+    if (hiddenInput.value) viewPhoto([hiddenInput.value], 0, '上傳預覽');
+  }
+}
+
+// ── LIGHTBOX VIEWER ──
+let currentViewerPhotos = [];
+let currentViewerIdx = 0;
+
+function viewPhoto(urlOrList, startIndex = 0, title = '查看照片 / 憑證') {
+  if (!urlOrList) return;
+  let list = [];
+  if (Array.isArray(urlOrList)) {
+    list = urlOrList;
+  } else if (typeof urlOrList === 'string') {
+    try {
+      const parsed = JSON.parse(urlOrList);
+      list = Array.isArray(parsed) ? parsed : [urlOrList];
+    } catch(e) {
+      list = [urlOrList];
+    }
+  }
+  if (!list.length) return;
+
+  currentViewerPhotos = list;
+  currentViewerIdx = Math.max(0, Math.min(startIndex, list.length - 1));
+
+  const titleEl = document.getElementById('pv-title');
+  if (titleEl) titleEl.textContent = '🖼️ ' + title;
+
+  renderViewerPhoto();
   openM('mo-photo');
 }
+
+function renderViewerPhoto() {
+  const count = currentViewerPhotos.length;
+  if (!count) return;
+  const currentUrl = currentViewerPhotos[currentViewerIdx];
+  const imgEl = document.getElementById('pv-img');
+  const dlEl = document.getElementById('pv-download');
+  const prevBtn = document.getElementById('pv-prev-btn');
+  const nextBtn = document.getElementById('pv-next-btn');
+  const counterEl = document.getElementById('pv-counter');
+  const stripEl = document.getElementById('pv-strip');
+
+  if (imgEl) {
+    imgEl.style.opacity = '0.4';
+    imgEl.src = currentUrl;
+    setTimeout(() => { if (imgEl) imgEl.style.opacity = '1'; }, 40);
+  }
+  if (dlEl) {
+    dlEl.href = currentUrl;
+    dlEl.download = `photo_${currentViewerIdx + 1}.jpg`;
+  }
+
+  if (count > 1) {
+    if (prevBtn) prevBtn.style.display = 'flex';
+    if (nextBtn) nextBtn.style.display = 'flex';
+    if (counterEl) {
+      counterEl.style.display = 'inline-block';
+      counterEl.textContent = `第 ${currentViewerIdx + 1} / ${count} 張`;
+    }
+    if (stripEl) {
+      stripEl.style.display = 'flex';
+      stripEl.innerHTML = currentViewerPhotos.map((url, i) => `
+        <img src="${url}" class="photo-strip-thumb ${i === currentViewerIdx ? 'active' : ''}" onclick="jumpViewerPhoto(${i})" title="第 ${i + 1} 張"/>
+      `).join('');
+    }
+  } else {
+    if (prevBtn) prevBtn.style.display = 'none';
+    if (nextBtn) nextBtn.style.display = 'none';
+    if (counterEl) counterEl.style.display = 'none';
+    if (stripEl) stripEl.style.display = 'none';
+  }
+}
+
+function changeViewerPhoto(delta) {
+  if (!currentViewerPhotos.length) return;
+  currentViewerIdx = (currentViewerIdx + delta + currentViewerPhotos.length) % currentViewerPhotos.length;
+  renderViewerPhoto();
+}
+
+function jumpViewerPhoto(idx) {
+  if (idx >= 0 && idx < currentViewerPhotos.length) {
+    currentViewerIdx = idx;
+    renderViewerPhoto();
+  }
+}
+
+function viewRecordPhotos(type, id, extraId) {
+  let list = [];
+  let title = '照片憑證';
+  if (type === 'tx') {
+    const t = txs().find(item => item.id === id) || (D.transactions && D.transactions[id]);
+    list = getItemPhotos(t);
+    title = (t ? t.name : '交易') + ' 憑證';
+  } else if (type === 'fixed') {
+    const ex = extraId ? (D.fixedExecutions && D.fixedExecutions[extraId]) : (D.fixedExecutions && D.fixedExecutions[id]);
+    const f = D.fixedItems && D.fixedItems[id];
+    list = (ex && getItemPhotos(ex).length) ? getItemPhotos(ex) : (f ? getItemPhotos(f) : []);
+    title = ((ex && ex.name) || (f && f.name) || '固定支出') + ' 憑證';
+  } else if (type === 'deposit') {
+    const d = D.deposits && D.deposits[id];
+    list = getItemPhotos(d);
+    title = (d ? mName(d.memberId) : '成員') + ' 繳款憑證';
+  } else if (type === 'receipt') {
+    const r = D.companyReceipts && D.companyReceipts[id];
+    list = getItemPhotos(r);
+    title = (r ? (r.vendor || r.name) : '公司') + ' 收據憑證';
+  }
+  if (list.length) {
+    viewPhoto(list, 0, title);
+  } else {
+    toast('此筆紀錄無照片憑證', 'info');
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  const moPhoto = document.getElementById('mo-photo');
+  if (moPhoto && moPhoto.classList.contains('active')) {
+    if (e.key === 'ArrowLeft') {
+      changeViewerPhoto(-1);
+    } else if (e.key === 'ArrowRight') {
+      changeViewerPhoto(1);
+    }
+  }
+});
 
 // ═══════════════════════════════════════════════
 //  INIT
@@ -1503,13 +1798,16 @@ function renderDash() {
   if (elRecentTx) {
     elRecentTx.innerHTML = rec.length===0
       ? `<div class="empty"><div class="empty-icon">📭</div><p>尚無交易紀錄</p></div>`
-      : rec.map(t=>`<div class="tx-item">
-          <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
-          <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
-          ${t.photo?`<img src="${t.photo}" class="photo-thumb" onclick="viewPhoto('${t.photo}')" title="點擊放大照片"/>`:''}
-          ${isAdm ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>` : ''}
-          <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
-        </div>`).join('');
+      : rec.map(t=>{
+          const tPhotos = getItemPhotos(t);
+          return `<div class="tx-item">
+            <div class="tx-icon" style="background:${t.type==='in'?'rgba(104,211,145,.12)':'rgba(252,129,129,.12)'}">${catIcon(t.name)}</div>
+            <div class="tx-info"><div class="tx-name">${t.name}</div><div class="tx-meta">${t.date}${t.location?' · 📍'+t.location:''}${t.paidBy?' · '+mName(t.paidBy):''}</div></div>
+            ${tPhotos.length?`<div class="photo-thumb-container" onclick="viewRecordPhotos('tx','${t.id}')" title="點擊放大照片 (${tPhotos.length}張)"><img src="${tPhotos[0]}" class="photo-thumb"/>${tPhotos.length>1?`<span class="photo-count-badge">${tPhotos.length}</span>`:''}</div>`:''}
+            ${isAdm ? `<button class="btn btn-sec btn-icon btn-sm" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片">✏️</button>` : ''}
+            <div class="tx-amt ${t.type}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</div>
+          </div>`;
+        }).join('');
   }
 
   const catMap={};
@@ -1533,13 +1831,15 @@ function renderDash() {
           const ex=execs().find(e=>e.fixedId===f.id&&e.month===m);
           const done=ex&&ex.done;
           const returnDate = (ex && ex.returnDate) || f.returnDate || null;
-          const itemPhoto = (ex && ex.photo) || f.photo || null;
+          const exPhotos = ex ? getItemPhotos(ex) : [];
+          const fPhotos = getItemPhotos(f);
+          const itemPhotos = exPhotos.length ? exPhotos : fPhotos;
           let statusBadge = '';
           if (done) {
-            statusBadge = `<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${ex.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${ex.photo}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`;
+            statusBadge = `<span class="badge b-green">✓ ${ex.date} · ${mName(ex.paidBy)}</span>${exPhotos.length?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewRecordPhotos('fixed','${f.id}','${ex.id}')" title="查看照片 (${exPhotos.length}張)">🖼️${exPhotos.length>1?`<span class="badge b-blue" style="font-size:10px;padding:0 3px;margin-left:2px">${exPhotos.length}</span>`:''}</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openExec('${f.id}','${ex.id}')" title="編輯/補傳照片">✏️</button><button class="btn btn-d btn-sm btn-icon" onclick="delExec('${ex.id}')" title="刪除扣款並退回金額">🗑</button>` : ''}`;
           } else if (returnDate) {
             const payerName = (f.paidBy ? ' · ' + mName(f.paidBy) : '');
-            statusBadge = `<span class="badge b-green">✓ 收據已繳回 (${returnDate}${payerName})</span>${itemPhoto?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${itemPhoto}')" title="查看照片">🖼️</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openFixed('${f.id}')" title="編輯項目/繳回日期">✏️</button>` : ''}`;
+            statusBadge = `<span class="badge b-green">✓ 收據已繳回 (${returnDate}${payerName})</span>${itemPhotos.length?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewRecordPhotos('fixed','${f.id}')" title="查看照片 (${itemPhotos.length}張)">🖼️${itemPhotos.length>1?`<span class="badge b-blue" style="font-size:10px;padding:0 3px;margin-left:2px">${itemPhotos.length}</span>`:''}</button>`:''}${isAdm ? `<button class="btn btn-sec btn-sm btn-icon" onclick="openFixed('${f.id}')" title="編輯項目/繳回日期">✏️</button>` : ''}`;
           } else {
             statusBadge = (isAdm ? `<button class="btn btn-p btn-sm" onclick="openExec('${f.id}')">💳 確認繳款</button>` : `<span class="badge b-amber">待繳款 (僅管理者可扣款)</span>`);
           }
@@ -1676,13 +1976,13 @@ function renderMembers() {
           }
 
           const badgeType = r.type === 'deposit' ? 'b-green' : (r.type === 'fixed' ? 'b-amber' : 'b-blue');
-
+          const rPhotos = getItemPhotos(r.rawObj) || (r.photo ? [r.photo] : []);
           return `<tr>
             <td>${r.date}</td>
             <td><span class="badge b-blue">${r.memberName}</span></td>
             <td><span class="badge ${badgeType}">${r.name}</span></td>
             <td style="font-weight:900;color:var(--green)">NT$${fmt(r.amount)}</td>
-            <td style="color:var(--t3)">${r.note || '-'}${r.photo ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${r.photo}')" title="查看照片" style="margin-left:6px">🖼️</button>` : ''}</td>
+            <td style="color:var(--t3)">${r.note || '-'}${rPhotos.length ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewRecordPhotos('${r.type==='fixed'?'fixed':(r.type==='in'?'tx':'deposit')}','${r.id}','${r.fixedId||''}')" title="查看照片 (${rPhotos.length}張)" style="margin-left:6px">🖼️${rPhotos.length>1?`<span class="badge b-blue" style="font-size:10px;padding:0 3px;margin-left:2px">${rPhotos.length}</span>`:''}</button>` : ''}</td>
             <td><div class="flex g2i">${editBtn}</div></td>
           </tr>`;
         }).join('');
@@ -1815,7 +2115,9 @@ function renderFixed() {
   tbody.innerHTML = displayList.map(({ item: f, ex }) => {
     const done = ex && ex.done;
     const returnDate = (ex && ex.returnDate) || f.returnDate || null;
-    const itemPhoto = (ex && ex.photo) || f.photo || null;
+    const exPhotos = ex ? getItemPhotos(ex) : [];
+    const fPhotos = getItemPhotos(f);
+    const itemPhotos = exPhotos.length ? exPhotos : fPhotos;
     const invoiceDateStr = f.dayDate ? f.dayDate : (f.day ? '每月 ' + f.day + ' 號' : '-');
 
     let returnDateHtml = '';
@@ -1845,7 +2147,7 @@ function renderFixed() {
     }
 
     return `<tr>
-      <td style="font-weight:700">${f.name}${f.paidBy ? ` <span class="badge b-blue" style="font-size:10px;margin-left:4px">👤 ${mName(f.paidBy)}</span>` : ''}${f.note ? `<div style="font-size:11px;color:var(--t3);font-weight:400;margin-top:2px">💬 ${f.note}</div>` : ''}${itemPhoto ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${itemPhoto}')" title="查看照片" style="margin-left:6px">🖼️</button>` : ''}</td>
+      <td style="font-weight:700">${f.name}${f.paidBy ? ` <span class="badge b-blue" style="font-size:10px;margin-left:4px">👤 ${mName(f.paidBy)}</span>` : ''}${f.note ? `<div style="font-size:11px;color:var(--t3);font-weight:400;margin-top:2px">💬 ${f.note}</div>` : ''}${itemPhotos.length ? ` <button class="btn btn-sec btn-sm btn-icon" onclick="viewRecordPhotos('fixed','${f.id}','${ex?ex.id:''}')" title="查看照片 (${itemPhotos.length}張)" style="margin-left:6px">🖼️${itemPhotos.length>1?`<span class="badge b-blue" style="font-size:10px;padding:0 3px;margin-left:2px">${itemPhotos.length}</span>`:''}</button>` : ''}</td>
       <td><span class="badge b-cyan">📍 ${f.location||'P2'}</span></td>
       <td style="font-weight:900;color:var(--amber)">NT$${fmt(f.amount)}</td>
       <td style="color:var(--t2)">${invoiceDateStr}</td>
@@ -1959,15 +2261,18 @@ function renderLedger() {
   if(sF)list=list.filter(t=>(t.name||'').toLowerCase().includes(sF)||(t.location||'').toLowerCase().includes(sF)||(t.category||'').toLowerCase().includes(sF)||(t.paidBy ? mName(t.paidBy).toLowerCase().includes(sF) : false));
   document.getElementById('led-tbody').innerHTML=list.length===0
     ?`<tr><td colspan="7" style="text-align:center;color:var(--t3);padding:26px">無符合紀錄</td></tr>`
-    :list.map(t=>`<tr>
-        <td>${t.date}</td>
-        <td><span class="badge ${t.type==='in'?'b-green':'b-red'}">${t.type==='in'?'收入':'支出'}</span></td>
-        <td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}</td>
-        <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
-        <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
-        <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
-        <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span>${isAdmin() ? `<button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button>` : ''}</div></td>
-      </tr>`).join('');
+    :list.map(t=>{
+        const tPhotos = getItemPhotos(t);
+        return `<tr>
+          <td>${t.date}</td>
+          <td><span class="badge ${t.type==='in'?'b-green':'b-red'}">${t.type==='in'?'收入':'支出'}</span></td>
+          <td style="font-weight:700">${t.name}${tPhotos.length?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewRecordPhotos('tx','${t.id}')" title="查看照片 (${tPhotos.length}張)" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️${tPhotos.length>1?`<span class="badge b-blue" style="font-size:10px;padding:0 3px;margin-left:2px">${tPhotos.length}</span>`:''}</button>`:''}</td>
+          <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
+          <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
+          <td style="font-weight:900;color:${t.type==='in'?'var(--green)':'var(--red)'}">${t.type==='in'?'+':'-'}NT$${fmt(t.amount)}</td>
+          <td style="font-size:12px;font-weight:700"><div style="display:flex;align-items:center;gap:4px"><span>NT$${fmt(t.balanceAfter)}</span>${isAdmin() ? `<button class="btn btn-d btn-icon btn-sm" onclick="delTx('${t.id}')" title="刪除紀錄並反轉金額" style="padding:2px 5px;font-size:11px">🗑</button>` : ''}</div></td>
+        </tr>`;
+      }).join('');
   const ti=list.filter(t=>t.type==='in').reduce((s,t)=>s+t.amount,0);
   const to=list.filter(t=>t.type==='out').reduce((s,t)=>s+t.amount,0);
   document.getElementById('led-sum').innerHTML=`
@@ -2161,12 +2466,15 @@ function renderReport() {
   const out=mt.filter(t=>t.type==='out').sort((a,b)=>b.date.localeCompare(a.date));
   document.getElementById('rpt-tbody').innerHTML=out.length===0
     ?`<tr><td colspan="5" style="text-align:center;color:var(--t3);padding:18px">無支出</td></tr>`
-    :out.map(t=>`<tr>
-        <td>${t.date}</td><td style="font-weight:700">${t.name}${t.photo?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewPhoto('${t.photo}')" title="查看照片" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:1px 5px;font-size:11px;margin-left:4px">✏️</button></td>
-        <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
-        <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
-        <td style="font-weight:900;color:var(--red)">NT$${fmt(t.amount)}</td>
-      </tr>`).join('');
+    :out.map(t=>{
+        const tPhotos = getItemPhotos(t);
+        return `<tr>
+          <td>${t.date}</td><td style="font-weight:700">${t.name}${tPhotos.length?` <button class="btn btn-sec btn-sm btn-icon" onclick="viewRecordPhotos('tx','${t.id}')" title="查看照片 (${tPhotos.length}張)" style="padding:1px 5px;font-size:11px;margin-left:6px">🖼️${tPhotos.length>1?`<span class="badge b-blue" style="font-size:10px;padding:0 3px;margin-left:2px">${tPhotos.length}</span>`:''}</button>`:''}<button class="btn btn-sec btn-sm btn-icon" onclick="openTxEdit('${t.id}')" title="編輯/補傳照片" style="padding:1px 5px;font-size:11px;margin-left:4px">✏️</button></td>
+          <td>${t.location?`<span class="badge b-cyan">📍 ${t.location}</span>`:'-'}</td>
+          <td>${t.paidBy?`<span class="badge b-blue">${mName(t.paidBy)}</span>`:'-'}</td>
+          <td style="font-weight:900;color:var(--red)">NT$${fmt(t.amount)}</td>
+        </tr>`;
+      }).join('');
 }
 
 // ═══════════════════════════════════════════════
@@ -2699,8 +3007,9 @@ function renderReceipts() {
       ? `<span class="badge b-green" style="cursor:pointer" onclick="quickToggleReceiptStatus('${r.id}')" title="點擊切換為未繳回">✅ 已繳回 (${retDateText})</span>`
       : `<span class="badge b-amber" style="cursor:pointer;animation:pulse 1.5s infinite" onclick="quickToggleReceiptStatus('${r.id}')" title="點擊標記為已繳回">⚠️ 尚未繳回</span>`;
 
-    const photoHtml = r.photo
-      ? `<img src="${r.photo}" class="photo-thumb" onclick="viewPhoto('${r.photo}')" title="點擊查看憑證照片"/>`
+    const rPhotos = getItemPhotos(r);
+    const photoHtml = rPhotos.length
+      ? `<div class="photo-thumb-container" onclick="viewRecordPhotos('receipt','${r.id}')" title="點擊查看憑證照片 (${rPhotos.length}張)"><img src="${rPhotos[0]}" class="photo-thumb"/>${rPhotos.length > 1 ? `<span class="photo-count-badge">${rPhotos.length}</span>` : ''}</div>`
       : `<span style="color:var(--t4);font-size:11px">無</span>`;
 
     return `<tr>
@@ -2790,7 +3099,7 @@ function openReceiptModal(id) {
     document.getElementById('rcpt-status').value = isRet ? 'returned' : 'unreturned';
     document.getElementById('rcpt-retdate').value = r.returnDate || '';
     document.getElementById('rcpt-note').value = r.note || '';
-    setPhotoPreview(r.photo, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-img');
+    setPhotoPreview(r.photos || r.photo, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-grid');
   } else {
     document.getElementById('rcpt-obtain-date').value = tod();
     document.getElementById('rcpt-amt').value = '';
@@ -2804,7 +3113,7 @@ function openReceiptModal(id) {
     document.getElementById('rcpt-status').value = 'unreturned';
     document.getElementById('rcpt-retdate').value = '';
     document.getElementById('rcpt-note').value = '';
-    setPhotoPreview(null, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-img');
+    setPhotoPreview(null, 'rcpt-photo-prev', 'rcpt-photo-val', 'rcpt-photo-grid');
   }
 
   openM('mo-receipt');
@@ -2833,7 +3142,7 @@ async function submitReceiptModal() {
   }
 
   const note = document.getElementById('rcpt-note').value.trim();
-  const photo = await getPhotoValue('rcpt-photo-input', 'rcpt-photo-val');
+  const { photo, photos } = await getPhotoData('rcpt-photo-input', 'rcpt-photo-val');
 
   if (!obtainDate) return toast('請選擇取得日期', 'error');
   if (isNaN(amt) || amt <= 0) return toast('請輸入有效金額', 'error');
@@ -2858,6 +3167,7 @@ async function submitReceiptModal() {
     returnDate: (status === 'returned') ? retDate : null,
     note,
     photo: photo || null,
+    photos: photos || null,
     createdAt: (isEdit && D.companyReceipts[rid]?.createdAt) || Date.now(),
     updatedAt: Date.now()
   };
@@ -3033,18 +3343,18 @@ function fillLocs(selId,emptyText='不指定/全區'){
 }
 
 // --- Funds ---
-function openFunds(){fillLocs('f-loc','不指定');document.getElementById('f-amt').value='';document.getElementById('f-date').value=tod();document.getElementById('f-note').value='';clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val');openM('mo-funds');}
+function openFunds(){fillLocs('f-loc','不指定');document.getElementById('f-amt').value='';document.getElementById('f-date').value=tod();document.getElementById('f-note').value='';clearPhoto('f-photo-input', 'f-photo-prev', 'f-photo-val', 'f-photo-grid');openM('mo-funds');}
 async function submitFunds(){
   const amt=parseFloat(document.getElementById('f-amt').value), loc=document.getElementById('f-loc').value||null, date=document.getElementById('f-date').value, note=document.getElementById('f-note').value.trim();
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   if(!date)return toast('請選擇日期','error');
-  const photo = await getPhotoValue('f-photo-input', 'f-photo-val');
+  const { photo, photos } = await getPhotoData('f-photo-input', 'f-photo-val');
   try{
     D.balance = (D.balance || 0) + amt;
     const txId = 'tx_' + gid();
     D.transactions[txId] = {
       id: txId, type: 'in', name: '資金注入' + (note ? `（${note}）` : ''), category: '注入',
-      location: loc, amount: amt, date, note, photo: photo || null,
+      location: loc, amount: amt, date, note, photo: photo || null, photos: photos || null,
       paidBy: CFG.currentMemberId || null, balanceAfter: D.balance, createdAt: Date.now()
     };
     closeM('mo-funds'); toast('已成功注入資金 NT$' + fmt(amt), 'success');
@@ -3068,13 +3378,13 @@ function openDeposit(did){
       document.getElementById('d-date').value = d.date || tod();
       document.getElementById('d-loc').value = d.location || '';
       document.getElementById('d-note').value = d.note || '';
-      setPhotoPreview(d.photo, 'd-photo-prev', 'd-photo-val', 'd-photo-img');
+      setPhotoPreview(d.photos || d.photo, 'd-photo-prev', 'd-photo-val', 'd-photo-grid');
     }
   } else {
     document.getElementById('d-amt').value = '';
     document.getElementById('d-date').value = tod();
     document.getElementById('d-note').value = '';
-    clearPhoto('d-photo-input', 'd-photo-prev', 'd-photo-val');
+    clearPhoto('d-photo-input', 'd-photo-prev', 'd-photo-val', 'd-photo-grid');
     if(CFG.currentMemberId) document.getElementById('d-mem').value = findMemberId(CFG.currentMemberId) || CFG.currentMemberId;
   }
   openM('mo-dep');
@@ -3085,7 +3395,7 @@ async function submitDeposit(){
   if(!mid)return toast('請選擇成員','error');
   if(!amt||amt<=0)return toast('請輸入有效金額','error');
   if(!date)return toast('請選擇日期','error');
-  const photo = await getPhotoValue('d-photo-input', 'd-photo-val');
+  const { photo, photos } = await getPhotoData('d-photo-input', 'd-photo-val');
   D.deposits = D.deposits || {};
   D.transactions = D.transactions || {};
   if (did) {
@@ -3093,10 +3403,10 @@ async function submitDeposit(){
     const diff = amt - old.amount;
     try {
       D.balance = (D.balance || 0) + diff;
-      D.deposits[did] = { ...old, memberId: mid, amount: amt, date, location: loc, note, photo: photo || null };
+      D.deposits[did] = { ...old, memberId: mid, amount: amt, date, location: loc, note, photo: photo || null, photos: photos || null };
       const tx = txs().find(t => t.ref === did);
       if (tx && D.transactions[tx.id]) {
-        D.transactions[tx.id] = { ...D.transactions[tx.id], name: mName(mid) + ' 繳款', amount: amt, date, location: loc, paidBy: mid, note, photo: photo || null, balanceAfter: D.balance };
+        D.transactions[tx.id] = { ...D.transactions[tx.id], name: mName(mid) + ' 繳款', amount: amt, date, location: loc, paidBy: mid, note, photo: photo || null, photos: photos || null, balanceAfter: D.balance };
       }
       closeM('mo-dep'); toast('已更新繳款紀錄與照片', 'success');
       await saveData();
@@ -3105,9 +3415,9 @@ async function submitDeposit(){
     try{
       D.balance = (D.balance || 0) + amt;
       const key = 'dep_' + gid();
-      D.deposits[key] = { id: key, memberId: mid, amount: amt, date, location: loc, note, photo: photo || null, createdAt: Date.now() };
+      D.deposits[key] = { id: key, memberId: mid, amount: amt, date, location: loc, note, photo: photo || null, photos: photos || null, createdAt: Date.now() };
       const txKey = 'tx_' + gid();
-      D.transactions[txKey] = { id: txKey, type: 'in', name: mName(mid) + ' 繳款', location: loc, amount: amt, date, paidBy: mid, note, photo: photo || null, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
+      D.transactions[txKey] = { id: txKey, type: 'in', name: mName(mid) + ' 繳款', location: loc, amount: amt, date, paidBy: mid, note, photo: photo || null, photos: photos || null, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
       closeM('mo-dep'); toast(mName(mid) + ' 繳款 NT$' + fmt(amt), 'success');
       await saveData();
     }catch(e){toast('操作失敗', 'error');}
@@ -3141,7 +3451,7 @@ function openFixed(eid){
       const elRet = document.getElementById('fix-return-date');
       if (elRet) elRet.value = f.returnDate || '';
       document.getElementById('fix-note').value=f.note||'';
-      setPhotoPreview(f.photo, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-img');
+      setPhotoPreview(f.photos || f.photo, 'fix-photo-prev', 'fix-photo-val', 'fix-photo-grid');
     }
   } else {
     document.getElementById('fix-day').value = tod();
@@ -3152,7 +3462,7 @@ function openFixed(eid){
       const el = document.getElementById(i);
       if (el) el.value = '';
     });
-    clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val');
+    clearPhoto('fix-photo-input', 'fix-photo-prev', 'fix-photo-val', 'fix-photo-grid');
   }
   openM('mo-fixed');
 }
@@ -3169,8 +3479,8 @@ async function submitFixed(){
   } else {
     day = parseInt(rawDay, 10) || null;
   }
-  const photo = await getPhotoValue('fix-photo-input', 'fix-photo-val');
-  const data={name,category:name,location:loc,amount:amt,day,dayDate:rawDay||null,paidBy:paid,returnDate,note,photo:photo||null};
+  const { photo, photos } = await getPhotoData('fix-photo-input', 'fix-photo-val');
+  const data={name,category:name,location:loc,amount:amt,day,dayDate:rawDay||null,paidBy:paid,returnDate,note,photo:photo||null,photos:photos||null};
   if(eid) {
     if (D.fixedItems[eid]) D.fixedItems[eid] = { ...D.fixedItems[eid], ...data };
     const relatedExecs = execs().filter(e => e.fixedId === eid);
@@ -3215,7 +3525,9 @@ function openExec(fid, exId){
       document.getElementById('exec-date').value = ex.date || tod();
       document.getElementById('exec-return-date').value = ex.returnDate || f.returnDate || '';
       document.getElementById('exec-note').value = ex.note || f.note || '';
-      setPhotoPreview(ex.photo || f.photo, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-img');
+      const exP = ex.photos || ex.photo;
+      const fP = f.photos || f.photo;
+      setPhotoPreview(exP || fP, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-grid');
     }
   } else {
     document.getElementById('exec-loc').value = f.location || 'P2';
@@ -3224,7 +3536,7 @@ function openExec(fid, exId){
     document.getElementById('exec-date').value=tod();
     document.getElementById('exec-return-date').value = f.returnDate || '';
     document.getElementById('exec-note').value=f.note || '';
-    setPhotoPreview(f.photo, 'exec-photo-input', 'exec-photo-val', 'exec-photo-img');
+    setPhotoPreview(f.photos || f.photo, 'exec-photo-prev', 'exec-photo-val', 'exec-photo-grid');
   }
   openM('mo-exec');
 }
@@ -3233,8 +3545,9 @@ async function submitExec(){
   const fid=document.getElementById('exec-fid').value, exId=document.getElementById('exec-eid').value, paid=document.getElementById('exec-paid').value||null, loc=document.getElementById('exec-loc').value||'P2', date=document.getElementById('exec-date').value, returnDate=document.getElementById('exec-return-date').value||null, note=document.getElementById('exec-note').value.trim();
   const f=D.fixedItems[fid]; if(!f)return;
   if(!date)return toast('請選擇日期','error');
-  const photo = await getPhotoValue('exec-photo-input', 'exec-photo-val');
+  const { photo, photos } = await getPhotoData('exec-photo-input', 'exec-photo-val');
   const finalPhoto = photo || (f ? f.photo : null);
+  const finalPhotos = photos || (f ? (f.photos || (f.photo ? [f.photo] : null)) : null);
 
   if (exId) {
     try {
@@ -3242,11 +3555,11 @@ async function submitExec(){
         // 若已填收據繳回日期，自動視為已扣款（done=true）
         const wasDone = D.fixedExecutions[exId].done;
         const nowDone = wasDone || !!returnDate;
-        D.fixedExecutions[exId] = { ...D.fixedExecutions[exId], paidBy: paid, location: loc, date, returnDate, note, photo: finalPhoto, done: nowDone };
+        D.fixedExecutions[exId] = { ...D.fixedExecutions[exId], paidBy: paid, location: loc, date, returnDate, note, photo: finalPhoto, photos: finalPhotos, done: nowDone };
       }
       const tx = txs().find(t => t.ref === exId);
       if (tx && D.transactions[tx.id]) {
-        D.transactions[tx.id] = { ...D.transactions[tx.id], name: f.name + '（固定）', category: f.name, amount: f.amount, date, location: loc, paidBy: paid, note, photo: finalPhoto };
+        D.transactions[tx.id] = { ...D.transactions[tx.id], name: f.name + '（固定）', category: f.name, amount: f.amount, date, location: loc, paidBy: paid, note, photo: finalPhoto, photos: finalPhotos };
       }
       if (f) f.returnDate = returnDate;
       closeM('mo-exec'); toast(returnDate ? '已更新扣款紀錄與收據繳回日期' : '已更新扣款紀錄（⚠️ 收據尚未繳回）', 'success');
@@ -3258,9 +3571,9 @@ async function submitExec(){
     try{
       D.balance = (D.balance || 0) - f.amount;
       const key = 'ex_' + gid();
-      D.fixedExecutions[key] = { id: key, fixedId: fid, name: f.name, amount: f.amount, month: m, done: true, location: loc, date, paidBy: paid, returnDate, note, photo: finalPhoto, createdAt: Date.now() };
+      D.fixedExecutions[key] = { id: key, fixedId: fid, name: f.name, amount: f.amount, month: m, done: true, location: loc, date, paidBy: paid, returnDate, note, photo: finalPhoto, photos: finalPhotos, createdAt: Date.now() };
       const txKey = 'tx_' + gid();
-      D.transactions[txKey] = { id: txKey, type: 'out', name: f.name + '（固定）', category: f.name || '固定支出', location: loc, amount: f.amount, date, paidBy: paid, note, photo: finalPhoto, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
+      D.transactions[txKey] = { id: txKey, type: 'out', name: f.name + '（固定）', category: f.name || '固定支出', location: loc, amount: f.amount, date, paidBy: paid, note, photo: finalPhoto, photos: finalPhotos, ref: key, balanceAfter: D.balance, createdAt: Date.now() };
       if (f) f.returnDate = returnDate;
       closeM('mo-exec'); toast('已成功扣款 NT$' + fmt(f.amount) + (returnDate ? '（收據已繳回）' : '（⚠️ 收據尚未繳回）'), 'success');
       await saveData();
@@ -3284,7 +3597,7 @@ function openTxEdit(txId) {
   document.getElementById('txe-date').value = t.date || tod();
   document.getElementById('txe-paid').value = t.paidBy || '';
   document.getElementById('txe-note').value = t.note || '';
-  setPhotoPreview(t.photo, 'txe-photo-prev', 'txe-photo-val', 'txe-photo-img');
+  setPhotoPreview(t.photos || t.photo, 'txe-photo-prev', 'txe-photo-val', 'txe-photo-grid');
   openM('mo-tx-edit');
 }
 
@@ -3304,7 +3617,7 @@ async function submitTxEdit() {
   if (!amt || amt <= 0) return toast('請輸入有效金額', 'error');
   if (!date) return toast('請選擇日期', 'error');
 
-  const photo = await getPhotoValue('txe-photo-input', 'txe-photo-val');
+  const { photo, photos } = await getPhotoData('txe-photo-input', 'txe-photo-val');
   const amtDiff = amt - (t.amount || 0);
 
   try {
@@ -3316,15 +3629,15 @@ async function submitTxEdit() {
     }
 
     D.transactions[txId] = {
-      ...t, name, category: cat, location: loc, amount: amt, date, paidBy: paid, note, photo: photo || null, balanceAfter: D.balance
+      ...t, name, category: cat, location: loc, amount: amt, date, paidBy: paid, note, photo: photo || null, photos: photos || null, balanceAfter: D.balance
     };
 
     if (t.ref) {
       if (D.deposits[t.ref]) {
-        D.deposits[t.ref] = { ...D.deposits[t.ref], memberId: paid, location: loc, amount: amt, date, note, photo: photo || null };
+        D.deposits[t.ref] = { ...D.deposits[t.ref], memberId: paid, location: loc, amount: amt, date, note, photo: photo || null, photos: photos || null };
       }
       if (D.fixedExecutions[t.ref]) {
-        D.fixedExecutions[t.ref] = { ...D.fixedExecutions[t.ref], paidBy: paid, location: loc, date, note, photo: photo || null };
+        D.fixedExecutions[t.ref] = { ...D.fixedExecutions[t.ref], paidBy: paid, location: loc, date, note, photo: photo || null, photos: photos || null };
       }
     }
     closeM('mo-tx-edit');
