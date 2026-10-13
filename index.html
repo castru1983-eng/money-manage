@@ -2981,11 +2981,11 @@ function renderReceipts() {
     });
   }
 
-  // 排序：較近/較新的繳款期限或取得日期排在最上面
+  // 排序：以取得日期為主，最新日期排在最上面（若取得日期相同則依繳款期限與建立時間排序）
   displayList.sort((a, b) => {
-    const dA = a.date || a.obtainDate || '';
-    const dB = b.date || b.obtainDate || '';
-    return dB.localeCompare(dA) || (b.createdAt || 0) - (a.createdAt || 0);
+    const dA = a.obtainDate || a.date || '';
+    const dB = b.obtainDate || b.date || '';
+    return dB.localeCompare(dA) || (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0);
   });
 
   const tbody = document.getElementById('rcpt-tbody');
@@ -3222,9 +3222,13 @@ function exportReceiptsExcel() {
 
   const elMo = document.getElementById('rcpt-mo');
   const curMo = elMo ? elMo.value : '';
-  const list = curMo ? allRcpts.filter(r => ((r.date || r.obtainDate || '').startsWith(curMo))) : allRcpts;
+  const list = curMo ? allRcpts.filter(r => ((r.obtainDate || r.date || '').startsWith(curMo))) : allRcpts;
 
-  list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  list.sort((a, b) => {
+    const dA = a.obtainDate || a.date || '';
+    const dB = b.obtainDate || b.date || '';
+    return dB.localeCompare(dA) || (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0);
+  });
 
   const dataRows = list.map(r => {
     const isRet = isRcptReturned(r);
